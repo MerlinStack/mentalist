@@ -1,0 +1,161 @@
+@import "tailwindcss" source(none);
+@import "@fontsource/inter/400.css";
+@import "@fontsource/inter/500.css";
+@import "@fontsource/inter/600.css";
+@import "@fontsource-variable/jetbrains-mono";
+@source "../src";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-brand-bg: #0A0F1E;
+  --color-panel-bg: rgba(26, 32, 53, 0.45);
+  --color-panel-border: rgba(45, 58, 92, 0.5);
+  --color-accent-blue: #4F6BFF;
+  --color-accent-gold: #FFD580;
+
+  --font-sans: "Inter", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono Variable", ui-monospace, monospace;
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-live: var(--live);
+  --color-ok: var(--ok);
+  --color-warn: var(--warn);
+}
+
+:root {
+  /* D'mentalist brand palette — deep navy / gold / live red */
+  --navy-deep:     #080D1C;
+  --navy-panel:    #0A0F1E;
+  --navy-card:     #0D1429;
+  --navy-surface:  #111827;
+
+  --gold:          #C9973A;
+  --gold-dim:      rgba(201, 151, 58, 0.2);
+  --gold-glow:     rgba(201, 151, 58, 0.08);
+
+  --live-red:      #EF4444;
+  --active-green:  #10B981;
+  --preview-purple: #6366F1;
+  --cf-blue:       #3B82F6;
+
+  --background:        var(--navy-deep);
+  --foreground:        #F1F5F9;
+  --surface:           var(--navy-panel);
+  --surface-2:         var(--navy-card);
+  --border:            rgba(255,255,255,0.06);
+  --border-strong:     rgba(255,255,255,0.10);
+  --muted:             var(--navy-surface);
+  --muted-foreground:  #94A3B8;
+  --accent:            var(--gold);
+  --accent-foreground: #080D1C;
+  --live:              var(--live-red);
+  --ok:                var(--active-green);
+  --warn:              #F59E0B;
+  --radius: 5px;
+}
+
+@layer base {
+  * { border-color: var(--color-border); }
+  html, body, #root { height: 100%; }
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    font-family: var(--font-sans);
+    font-feature-settings: "cv11", "ss01";
+    -webkit-font-smoothing: antialiased;
+  }
+}
+
+@keyframes pulse-red {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.35; }
+}
+
+@keyframes pulse-green {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%       { opacity: 0.5; transform: scale(0.85); }
+}
+
+@keyframes pulse-gold {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.4; }
+}
+
+@keyframes verse-enter {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes wave-bar {
+  0%, 100% { transform: scaleY(0.3); }
+  50%       { transform: scaleY(1); }
+}
+
+@keyframes slide-up {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes scaleUp {
+  from { opacity: 0; transform: scale(0.92); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@utility animate-pulse-red {
+  animation: pulse-red 1.2s ease-in-out infinite;
+}
+
+@utility animate-pulse-green {
+  animation: pulse-green 1.2s ease-in-out infinite;
+}
+
+@utility animate-pulse-gold {
+  animation: pulse-gold 2s ease-in-out infinite;
+}
+
+@utility animate-verse-enter {
+  animation: verse-enter 0.4s ease;
+}
+
+@utility animate-slide-up {
+  animation: slide-up 0.5s ease-out;
+}
+
+@utility animate-fade-in {
+  animation: fade-in 0.5s ease-out;
+}
+
+@utility animate-fadeIn {
+  animation: fadeIn 0.4s ease-out;
+}
+
+@utility animate-scaleUp {
+  animation: scaleUp 0.35s ease-out;
+}
+
+@utility pro-console-glass {
+  background: var(--color-panel-bg);
+  backdrop-filter: blur(16px);
+  border: 1px solid var(--color-panel-border);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+}
