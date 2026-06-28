@@ -107,11 +107,11 @@ function TypewriterScripture() {
 function FloatingOrbs() {
   return (
     <div className="absolute inset-0 overflow-hidden pointer-events-none">
-      <div className="absolute top-[10%] left-[15%] w-[400px] h-[400px] rounded-full opacity-20 blur-3xl"
+      <div className="absolute top-[10%] left-[15%] w-[min(400px,80vw)] h-[min(400px,80vw)] rounded-full opacity-20 blur-3xl"
         style={{ background: 'radial-gradient(circle, #C9973A 0%, transparent 70%)', animation: 'float 20s ease-in-out infinite' }} />
-      <div className="absolute bottom-[20%] right-[10%] w-[500px] h-[500px] rounded-full opacity-15 blur-3xl"
+      <div className="absolute bottom-[20%] right-[10%] w-[min(500px,90vw)] h-[min(500px,90vw)] rounded-full opacity-15 blur-3xl"
         style={{ background: 'radial-gradient(circle, #4F6BFF 0%, transparent 70%)', animation: 'float 25s ease-in-out infinite reverse' }} />
-      <div className="absolute top-[40%] right-[30%] w-[300px] h-[300px] rounded-full opacity-10 blur-3xl"
+      <div className="absolute top-[40%] right-[30%] w-[min(300px,60vw)] h-[min(300px,60vw)] rounded-full opacity-10 blur-3xl"
         style={{ background: 'radial-gradient(circle, #10B981 0%, transparent 70%)', animation: 'float 18s ease-in-out infinite 5s' }} />
     </div>
   )
@@ -121,7 +121,7 @@ export default function LandingPage() {
   const navigate = useNavigate()
 
   return (
-    <div className="min-h-screen bg-[#080D1C] overflow-hidden font-sans selection:bg-[#C9973A]/30">
+    <div className="min-h-screen bg-[#080D1C] overflow-x-hidden overflow-y-auto font-sans selection:bg-[#C9973A]/30">
       <style>{`
         @keyframes float {
           0%, 100% { transform: translate(0, 0) scale(1); }
@@ -147,7 +147,7 @@ export default function LandingPage() {
       {/* ─── NAV ─── */}
       <nav className="relative z-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-18">
+          <div className="flex items-center justify-between h-16 md:h-18 py-2">
             <div className="flex items-center gap-3">
               <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#C9973A] to-[#FFD580] flex items-center justify-center shadow-lg shadow-[#C9973A]/20">
                 <span className="text-[#080D1C] font-bold text-base font-sans">D</span>
@@ -248,8 +248,8 @@ export default function LandingPage() {
                 <div className="space-y-3">
                   <div className="p-4 rounded-xl bg-[#1A2035]/40 border border-[#2D3A5C]/40">
                     <div className="flex items-center justify-between mb-3">
-                      <span className="text-[10px] font-bold uppercase tracking-widest text-[#94A3B8]">Acoustic Gain</span>
-                      <span className="text-[10px] font-mono text-[#C9973A]">64%</span>
+                      <span className="text-[10px] md:text-[11px] font-bold uppercase tracking-widest text-[#94A3B8]">Acoustic Gain</span>
+                      <span className="text-[10px] md:text-[11px] font-mono text-[#C9973A]">64%</span>
                     </div>
                     <div className="flex items-end gap-px h-8">
                       {[20, 35, 50, 70, 85, 95, 100, 90, 75, 55, 40, 25, 30, 45, 60, 75, 85, 70, 50, 35].map((h, i) => (
@@ -257,8 +257,8 @@ export default function LandingPage() {
                       ))}
                     </div>
                     <div className="flex items-center justify-between mt-2">
-                      <span className="text-[9px] font-mono text-[#10B981]">● LIVE</span>
-                      <span className="text-[9px] font-mono text-[#64748B]">Threshold: 64%</span>
+                      <span className="text-[10px] md:text-[11px] font-mono text-[#10B981]">● LIVE</span>
+                      <span className="text-[10px] md:text-[11px] font-mono text-[#64748B]">Threshold: 64%</span>
                     </div>
                   </div>
 
@@ -267,7 +267,7 @@ export default function LandingPage() {
                       <span className="text-[#94A3B8]">…and we know that all things</span>{' '}
                       <span className="text-[#4F6BFF] font-medium">work together for good</span>
                     </p>
-                    <div className="mt-2 flex items-center gap-2 text-[10px]">
+                    <div className="mt-2 flex items-center gap-2 text-[10px] md:text-[11px] flex-wrap">
                       <span className="text-[#10B981]">✓ Detected:</span>
                       <span className="text-white font-medium">Romans 8:28</span>
                       <span className="text-[#64748B]">· 94% confidence</span>
@@ -278,18 +278,18 @@ export default function LandingPage() {
                 {/* Center: Preview */}
                 <div className="p-6 rounded-xl bg-[#1A2035]/40 border border-[#2D3A5C]/40 flex flex-col items-center justify-center text-center min-h-[200px]">
                   <div className="flex items-center gap-2 mb-3">
-                    <span className="text-[10px] font-bold tracking-widest uppercase text-[#4F6BFF] font-mono px-2 py-0.5 bg-[#4F6BFF]/10 rounded border border-[#4F6BFF]/20">
+                    <span className="text-[10px] md:text-[11px] font-bold tracking-widest uppercase text-[#4F6BFF] font-mono px-2 py-0.5 bg-[#4F6BFF]/10 rounded border border-[#4F6BFF]/20">
                       Preview
                     </span>
-                    <span className="text-[10px] text-[#64748B]">Next: John 3:16</span>
+                    <span className="text-[10px] md:text-[11px] text-[#64748B]">Next: John 3:16</span>
                   </div>
-                  <span className="text-[11px] font-bold tracking-widest uppercase text-[#FFD580] font-mono px-2 py-0.5 rounded-full bg-[#FFD580]/10 border border-[#FFD580]/20 mb-3">
+                  <span className="text-[11px] md:text-xs font-bold tracking-widest uppercase text-[#FFD580] font-mono px-2 py-0.5 rounded-full bg-[#FFD580]/10 border border-[#FFD580]/20 mb-3">
                     Romans 8:28 — KJV
                   </span>
-                  <p className="text-base font-serif leading-relaxed text-white font-medium italic">
+                  <p className="text-sm md:text-base font-serif leading-relaxed text-white font-medium italic">
                     &ldquo;And we know that all things work together for good to them that love God&rdquo;
                   </p>
-                  <div className="flex items-center gap-3 mt-4 text-[10px] text-[#64748B]">
+                  <div className="flex items-center gap-3 mt-4 text-[10px] md:text-[11px] text-[#64748B]">
                     <span>Confidence: <span className="text-[#10B981] font-bold">94%</span></span>
                   </div>
                 </div>
@@ -298,17 +298,17 @@ export default function LandingPage() {
                 <div className="p-6 rounded-xl border-2 border-[#EF4444]/30 bg-black/40 flex flex-col items-center justify-center text-center min-h-[200px]">
                   <div className="flex items-center gap-2 mb-3">
                     <span className="h-1.5 w-1.5 rounded-full bg-[#EF4444] animate-ping" />
-                    <span className="text-[10px] font-bold tracking-widest uppercase text-[#EF4444] font-mono">
+                    <span className="text-[10px] md:text-[11px] font-bold tracking-widest uppercase text-[#EF4444] font-mono">
                       Live Projector
                     </span>
                   </div>
-                  <p className="text-lg font-serif leading-relaxed text-white font-semibold">
+                  <p className="text-base md:text-lg font-serif leading-relaxed text-white font-semibold">
                     {`"For God so loved the world..."`}
                   </p>
-                  <span className="text-xs font-mono text-[#4F6BFF] tracking-wider mt-3 uppercase font-bold">
+                  <span className="text-[10px] md:text-xs font-mono text-[#4F6BFF] tracking-wider mt-3 uppercase font-bold">
                     John 3:16
                   </span>
-                  <div className="flex items-center gap-2 text-[10px] text-[#EF4444] mt-3">
+                  <div className="flex items-center gap-2 text-[10px] md:text-[11px] text-[#EF4444] mt-3 flex-wrap">
                     <span className="h-1.5 w-1.5 rounded-full bg-[#EF4444] animate-pulse" />
                     <span>LIVE</span>
                     <span className="text-[#64748B]">·</span>

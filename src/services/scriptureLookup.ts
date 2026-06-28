@@ -43,12 +43,48 @@ export class ScriptureLookupEngine {
   }
 
   public reverseLookup(transcript: string, matchThreshold = 75): LookupMatchResult | null {
+    const results = this.reverseLookupTopN(transcript, matchThreshold, 1);
+    return results.length > 0 ? results[0] : null;
+  }
+
+  public getVerse(book: string, chapter: number, verse: number): BibleVerseRecord | null {
+    for (const v of this.verses) {
+      if (v.b.toLowerCase() === book.toLowerCase() && v.c === chapter && v.v === verse) {
+        return v;
+      }
+    }
+    return null;
+  }
+
+  public getChapter(book: string, chapter: number): BibleVerseRecord[] {
+    return this.verses.filter(
+      (v) => v.b.toLowerCase() === book.toLowerCase() && v.c === chapter,
+    );
+  }
+
+  public getVerseByRef(ref: string): BibleVerseRecord | null {
+    const match = ref.match(/^(.+?)\s+(\d+):(\d+)$/);
+    if (!match) return null;
+    const [, book, ch, vs] = match;
+    return this.getVerse(book, parseInt(ch), parseInt(vs));
+  }
+
+  public getVerseText(book: string, chapter: number, verse: number): string | null {
+    for (const v of this.verses) {
+      if (v.b.toLowerCase() === book.toLowerCase() && v.c === chapter && v.v === verse) {
+        return v.t;
+      }
+    }
+    return null;
+  }
+
+  public reverseLookupTopN(transcript: string, matchThreshold = 75, topN = 5): LookupMatchResult[] {
     if (!transcript || transcript.trim().length < 8 || this.verses.length === 0) {
-      return null;
+      return [];
     }
 
     const queryTokens = this.tokenize(transcript);
-    if (queryTokens.length === 0) return null;
+    if (queryTokens.length === 0) return [];
 
     const scores = new Map<number, number>();
 
@@ -61,39 +97,38 @@ export class ScriptureLookupEngine {
       }
     }
 
-    if (scores.size === 0) return null;
+    if (scores.size === 0) return [];
 
-    let bestIdx = -1;
-    let maxHits = 0;
+    const sorted = [...scores.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, topN * 3);
 
-    for (const [idx, hits] of scores.entries()) {
-      if (hits > maxHits) {
-        maxHits = hits;
-        bestIdx = idx;
-      }
+    const results: LookupMatchResult[] = [];
+
+    for (const [idx, hits] of sorted) {
+      const matchedVerse = this.verses[idx];
+      const targetTokens = this.tokenize(matchedVerse.t);
+      const uniqueMatches = queryTokens.filter(t => targetTokens.includes(t)).length;
+      const confidence = Math.round((uniqueMatches / Math.max(queryTokens.length, 3)) * 100);
+
+      if (confidence < matchThreshold) continue;
+
+      const referenceStr = `${matchedVerse.b} ${matchedVerse.c}:${matchedVerse.v}`;
+
+      results.push({
+        ref: referenceStr,
+        book: matchedVerse.b,
+        chapter: matchedVerse.c,
+        verse: matchedVerse.v,
+        text: matchedVerse.t,
+        confidence: Math.min(confidence, 100),
+        stage: "semantic",
+      });
+
+      if (results.length >= topN) break;
     }
 
-    if (bestIdx === -1) return null;
-
-    const matchedVerse = this.verses[bestIdx];
-    const targetTokens = this.tokenize(matchedVerse.t);
-
-    const uniqueMatches = queryTokens.filter(t => targetTokens.includes(t)).length;
-    const confidence = Math.round((uniqueMatches / Math.max(queryTokens.length, 3)) * 100);
-
-    if (confidence < matchThreshold) return null;
-
-    const referenceStr = `${matchedVerse.b} ${matchedVerse.c}:${matchedVerse.v}`;
-
-    return {
-      ref: referenceStr,
-      book: matchedVerse.b,
-      chapter: matchedVerse.c,
-      verse: matchedVerse.v,
-      text: matchedVerse.t,
-      confidence: Math.min(confidence, 100),
-      stage: "semantic"
-    };
+    return results;
   }
 }
 

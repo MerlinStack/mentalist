@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { Verse } from "../api/bible";
+import type { MatchRange } from "../utils/distance";
 
 interface SoundState {
   isListening: boolean;
@@ -9,6 +10,7 @@ interface SoundState {
   detectedVerse: Verse | null;
   confidence: number;
   sensitivity: "low" | "medium" | "high";
+  matchRange: MatchRange;
   isProcessing: boolean;
   audioLevel: number;
   currentBook: string | null;
@@ -32,6 +34,7 @@ interface SoundState {
   setDetectedVerse: (v: Verse | null) => void;
   setAudioLevel: (n: number) => void;
   setSensitivity: (s: "low" | "medium" | "high") => void;
+  setMatchRange: (r: MatchRange) => void;
   setProcessing: (b: boolean) => void;
   setError: (e: string | null) => void;
   setAiMode: (b: boolean) => void;
@@ -53,6 +56,7 @@ const initialData = {
   detectedVerse: null as Verse | null,
   confidence: 0,
   sensitivity: "high" as const,
+  matchRange: "balanced" as MatchRange,
   isProcessing: false,
   audioLevel: 0,
   currentBook: null as string | null,
@@ -94,6 +98,7 @@ export const useSoundStore = create<SoundState>()(
         }),
       setAudioLevel: (audioLevel) => set({ audioLevel }),
       setSensitivity: (sensitivity) => set({ sensitivity }),
+      setMatchRange: (matchRange) => set({ matchRange }),
       setProcessing: (isProcessing) => set({ isProcessing }),
       setError: (error) => set({ error }),
       setAiMode: (aiMode) => set({ aiMode }),
@@ -120,6 +125,7 @@ export const useSoundStore = create<SoundState>()(
       name: "scriptureflow-sound",
       partialize: (state) => ({
         sensitivity: state.sensitivity,
+        matchRange: state.matchRange,
         aiMode: state.aiMode,
         micMuted: state.micMuted,
       }),

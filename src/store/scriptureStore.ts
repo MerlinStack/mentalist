@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { Verse } from "../api/bible";
+import { lookupEngine } from "../services/scriptureLookup";
 
 interface UsageData {
   searchesToday: number;
@@ -34,6 +35,7 @@ interface ScriptureState {
   query: string;
   results: Verse[];
   activeVerse: Verse | null;
+  relatedReferences: Verse[];
   isSearching: boolean;
   searchError: string | null;
   searchHistory: { query: string; timestamp: number }[];
@@ -50,6 +52,7 @@ interface ScriptureState {
   setSearchMode: (m: string) => void;
   setResults: (r: Verse[]) => void;
   setActiveVerse: (v: Verse | null) => void;
+  setRelatedReferences: (r: Verse[]) => void;
   setSearching: (b: boolean) => void;
   setSearchError: (e: string | null) => void;
   setTranslation: (t: string) => void;
@@ -80,6 +83,7 @@ export const useScriptureStore = create<ScriptureState>()(
       query: "",
       results: [],
       activeVerse: null,
+      relatedReferences: [],
       isSearching: false,
       searchError: null,
       searchHistory: [],
@@ -101,6 +105,7 @@ export const useScriptureStore = create<ScriptureState>()(
       setResults: (results) => set({ results }),
       setTranslation: (activeTranslation) => set({ activeTranslation }),
       setActiveVerse: (verse) => set({ activeVerse: verse }),
+      setRelatedReferences: (relatedReferences) => set({ relatedReferences }),
       setCurrentBook: (currentBook) => set({ currentBook }),
       setCurrentChapter: (currentChapter) => set({ currentChapter }),
       setConfidence: (confidence) => set({ confidence }),
@@ -149,7 +154,7 @@ export const useScriptureStore = create<ScriptureState>()(
       },
 
       clearHistory: () => set({ searchHistory: [] }),
-      clearResults: () => set({ results: [], activeVerse: null, searchError: null }),
+      clearResults: () => set({ results: [], activeVerse: null, relatedReferences: [], searchError: null }),
 
       clearDetection: () =>
         set({
@@ -161,19 +166,18 @@ export const useScriptureStore = create<ScriptureState>()(
           detectionSource: null,
         }),
 
-      loadChapter: async (book, chapter) => {
-        const { getChapter } = await import("../api/bible");
-        const translation = get().activeTranslation;
-        const apiCode =
-          translation === "KJV"
-            ? "kjv"
-            : translation === "NIV"
-              ? "web"
-              : translation === "ESV"
-                ? "darby"
-                : "kjv";
-        const chapterVerses = await getChapter(book, chapter, apiCode);
-        set({ results: chapterVerses });
+      loadChapter: (book, chapter) => {
+        const chapterVerses = lookupEngine.getChapter(book, chapter);
+        set({
+          results: chapterVerses.map((v) => ({
+            reference: `${v.b} ${v.c}:${v.v}`,
+            text: v.t,
+            book: v.b,
+            chapter: v.c,
+            verse: v.v,
+            translation: "KJV",
+          })),
+        });
       },
     }),
     {

@@ -6,6 +6,7 @@ const CHUNK_INTERVAL = 5000;
 export function useAudioCapture() {
   const [stream, setStream] = useState(null);
   const [audioLevel, setAudioLevel] = useState(0);
+  const [frequencyData, setFrequencyData] = useState(new Uint8Array(0));
   const streamRef = useRef(null);
   const mediaRecorderRef = useRef(null);
   const audioContextRef = useRef(null);
@@ -44,6 +45,7 @@ export function useAudioCapture() {
         for (let i = 0; i < dataArray.length; i++) sum += dataArray[i];
         const level = Math.min(Math.round((sum / dataArray.length / 255) * 200), 100);
         setAudioLevel(level);
+        setFrequencyData(new Uint8Array(dataArray));
         useSoundStore.getState().setAudioLevel(level);
         rafRef.current = requestAnimationFrame(tick);
       };
@@ -101,6 +103,7 @@ export function useAudioCapture() {
   return {
     stream,
     audioLevel,
+    frequencyData,
     startCapture,
     stopCapture,
   };

@@ -84,7 +84,7 @@ function ProjectOutput() {
 
   return (
     <div
-      className="min-h-screen flex items-center justify-center p-16"
+      className="min-h-screen flex items-center justify-center p-4 md:p-8 lg:p-16"
       style={{ background: config.bg, color: config.text }}
     >
       <div
@@ -92,8 +92,8 @@ function ProjectOutput() {
         style={{ opacity: visible ? 1 : 0, transform: visible ? "scale(1)" : "scale(0.95)" }}
       >
         <p
-          className="leading-relaxed font-serif"
-          style={{ fontSize: `${fontPx}px`, lineHeight: 1.5 }}
+          className="leading-relaxed font-serif break-words"
+          style={{ fontSize: `${fontPx}px`, lineHeight: 1.5, overflowWrap: 'break-word', wordBreak: 'break-word' }}
         >
           {verse.text}
         </p>

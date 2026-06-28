@@ -89,14 +89,14 @@ export default function VersePanel({ kind, verse, nextRef, translation, actions 
       )}
 
       {/* Verse display — cinematic */}
-      <div className="flex-1 flex flex-col items-center justify-center text-center px-6 py-6 min-h-0 animate-fadeIn">
+      <div className="flex-1 flex flex-col items-center justify-center text-center px-4 md:px-6 py-4 md:py-6 min-h-0 animate-fadeIn">
         <div className="w-full max-w-lg">
           {/* Reference bar with gold gradient rules */}
-          <div className="flex items-center gap-3 mb-6">
+          <div className="flex items-center gap-2 md:gap-3 mb-4 md:mb-6">
             <div className="flex-1 h-px" style={{
               background: 'linear-gradient(90deg, transparent, rgba(201, 151, 58, 0.2), rgba(201, 151, 58, 0.35))',
             }} />
-            <span className="text-cinema-reference" style={{ letterSpacing: '0.25em' }}>
+            <span className="text-cinema-reference text-[9px] md:text-[11px]" style={{ letterSpacing: '0.25em' }}>
               {ref}{translation ? `  ·  ${translation}` : ''}
             </span>
             <div className="flex-1 h-px" style={{
@@ -105,8 +105,8 @@ export default function VersePanel({ kind, verse, nextRef, translation, actions 
           </div>
 
           <p
-            className="font-serif leading-relaxed text-[#F1F5F9] italic mx-auto"
-            style={{ fontSize: isLive ? 23 : 19, lineHeight: 1.85, letterSpacing: '0.01em' }}
+            className="font-serif leading-relaxed text-[#F1F5F9] italic mx-auto text-sm md:text-base lg:text-lg"
+            style={{ fontSize: isLive ? 'clamp(16px, 4vw, 23px)' : 'clamp(14px, 3.5vw, 19px)', lineHeight: 1.85, letterSpacing: '0.01em' }}
           >
             {verseNum && (
               <span

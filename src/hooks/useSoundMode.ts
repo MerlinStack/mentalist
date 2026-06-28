@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 import { useSoundStore } from '../store/soundStore';
 import { useScriptureStore } from '../store/scriptureStore';
 import { parseScriptureReference, formatReference } from '../utils/scriptureParser';
-import { fetchVerse } from '../api/bible';
+import { lookupEngine } from '../services/scriptureLookup';
 
 export function useSoundMode(opts?: { utteranceRef?: { current: ((text: string) => void) | undefined } }) {
   const isListening = useSoundStore((state) => state.isListening);
@@ -51,16 +51,17 @@ export function useSoundMode(opts?: { utteranceRef?: { current: ((text: string) 
         if (parsed && parsed.length > 0) {
           try {
             const ref = parsed[0];
-            const data = await fetchVerse(formatReference(ref.book, ref.chapter, ref.verse), 'kjv');
-            if (data) {
+            const refStr = formatReference(ref.book, ref.chapter, ref.verse);
+            const v = lookupEngine.getVerseByRef(refStr);
+            if (v) {
               useScriptureStore.setState({
                 activeVerse: {
-                  reference: data.reference,
-                  text: data.text,
-                  book: data.book,
-                  chapter: data.chapter,
-                  verse: data.verse,
-                  translation: data.translation || 'KJV'
+                  reference: refStr,
+                  text: v.t,
+                  book: v.b,
+                  chapter: v.c,
+                  verse: v.v,
+                  translation: 'KJV'
                 }
               });
             }
