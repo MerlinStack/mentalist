@@ -12,7 +12,6 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AppRouteImport } from './routes/app'
-import { Route as ProjectionRouteImport } from './routes/projection'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as ProjectRouteImport } from './routes/project'
 import { Route as OperatorRouteImport } from './routes/operator'
@@ -33,12 +32,6 @@ const AuthRoute = AuthRouteImport.update({
 const AppRoute = AppRouteImport.update({
   id: '/app',
   path: '/app',
-  getParentRoute: () => rootRouteImport,
-} as any)
-
-const ProjectionRoute = ProjectionRouteImport.update({
-  id: '/projection',
-  path: '/projection',
   getParentRoute: () => rootRouteImport,
 } as any)
 
@@ -89,13 +82,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/projection': {
-      id: '/projection'
-      path: '/projection'
-      fullPath: '/projection'
-      preLoaderRoute: typeof ProjectionRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/admin': {
       id: '/admin'
       path: '/admin'
@@ -131,7 +117,6 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/app': typeof AppRoute
-  '/projection': typeof ProjectionRoute
   '/admin': typeof AdminRoute
   '/project': typeof ProjectRoute
   '/operator': typeof OperatorRoute
@@ -142,7 +127,6 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/app': typeof AppRoute
-  '/projection': typeof ProjectionRoute
   '/admin': typeof AdminRoute
   '/project': typeof ProjectRoute
   '/operator': typeof OperatorRoute
@@ -154,7 +138,6 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/app': typeof AppRoute
-  '/projection': typeof ProjectionRoute
   '/admin': typeof AdminRoute
   '/project': typeof ProjectRoute
   '/operator': typeof OperatorRoute
@@ -163,10 +146,10 @@ export interface FileRoutesById {
 
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/auth' | '/app' | '/projection' | '/admin' | '/project' | '/operator' | '/$'
+  fullPaths: '/' | '/auth' | '/app' | '/admin' | '/project' | '/operator' | '/$'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/auth' | '/app' | '/projection' | '/admin' | '/project' | '/operator' | '/$'
-  id: '__root__' | '/' | '/auth' | '/app' | '/projection' | '/admin' | '/project' | '/operator' | '/$'
+  to: '/' | '/auth' | '/app' | '/admin' | '/project' | '/operator' | '/$'
+  id: '__root__' | '/' | '/auth' | '/app' | '/admin' | '/project' | '/operator' | '/$'
   fileRoutesById: FileRoutesById
 }
 
@@ -174,7 +157,6 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthRoute: typeof AuthRoute
   AppRoute: typeof AppRoute
-  ProjectionRoute: typeof ProjectionRoute
   AdminRoute: typeof AdminRoute
   ProjectRoute: typeof ProjectRoute
   OperatorRoute: typeof OperatorRoute
@@ -185,7 +167,6 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthRoute: AuthRoute,
   AppRoute: AppRoute,
-  ProjectionRoute: ProjectionRoute,
   AdminRoute: AdminRoute,
   ProjectRoute: ProjectRoute,
   OperatorRoute: OperatorRoute,

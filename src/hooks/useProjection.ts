@@ -18,7 +18,7 @@ export function useProjection() {
       return;
     }
     windowRef.current = window.open(
-      "/projection",
+      "/project",
       "ScriptureFlow Projection",
       "width=1280,height=720,menubar=no,toolbar=no,location=no,status=no",
     );

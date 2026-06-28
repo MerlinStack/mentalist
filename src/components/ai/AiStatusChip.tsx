@@ -18,20 +18,24 @@ function ModelProgress({
   if (ready) {
     return (
       <div className="flex items-center gap-2 text-[10px] text-emerald-400 font-mono">
-        <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-        {label} ✓
+        <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 glow-green" style={{ filter: 'drop-shadow(0 0 6px rgba(16, 185, 129, 0.6))' }} />
+        {label} <span className="text-emerald-500">✓</span>
       </div>
     );
   }
 
-  if (status === "progress" || status === "download") {
+  if (status === "progress" || status === "download" || status === "webgpu-fallback" || status === "fallback") {
     return (
       <div className="space-y-0.5">
         <div className="flex items-center justify-between text-[9px] font-mono">
-          <span className="text-amber-400">⟳ {label}</span>
+          <span className={status === "fallback" || status === "webgpu-fallback" ? 'text-amber-400' : 'text-amber-400'}>
+            {status === "fallback" || status === "webgpu-fallback" ? '⟳ ' : '⟳ '}{label}
+            {status === "webgpu-fallback" && <span className="text-[8px] text-slate-500 ml-1">CPU</span>}
+            {status === "fallback" && <span className="text-[8px] text-slate-500 ml-1">legacy</span>}
+          </span>
           <span className="text-slate-400">{pct}%</span>
         </div>
-        <div className="h-1 rounded-full bg-slate-800 overflow-hidden">
+        <div className="h-1 rounded-full bg-slate-800/60 overflow-hidden ring-1 ring-white/[0.03]">
           <div
             className="h-full rounded-full bg-gradient-to-r from-amber-500 to-emerald-400 transition-all duration-300"
             style={{ width: `${pct}%` }}
@@ -51,16 +55,23 @@ export default function AiStatusChip() {
   const semanticProgress = useSoundStore((s) => s.semanticProgress);
 
   const hasActivity = whisperProgress.status === "progress"
+    || whisperProgress.status === "download"
+    || whisperProgress.status === "webgpu-fallback"
+    || whisperProgress.status === "fallback"
     || semanticProgress.status === "progress"
+    || semanticProgress.status === "download"
+    || semanticProgress.status === "webgpu-fallback"
+    || semanticProgress.status === "fallback"
     || !whisperLoaded
     || !semanticLoaded;
 
   if (!hasActivity) return null;
 
   return (
-    <div className="rounded-lg bg-[#1A2035]/60 backdrop-blur-md border border-[#2D3A5C]/30 p-3 space-y-2 min-w-[160px] shadow-[0_4px_16px_rgba(0,0,0,0.3)]">
-      <div className="text-[9px] font-bold uppercase tracking-widest text-slate-500">
-        Model Downloads
+    <div className="glass-premium rounded-xl p-3.5 space-y-2.5 min-w-[180px]">
+      <div className="flex items-center gap-2 border-b border-white/[0.04] pb-2">
+        <div className="w-1 h-3 rounded-full bg-gradient-to-b from-[#C9973A] to-[#C9973A]/30" />
+        <span className="text-cinema-label">Model Downloads</span>
       </div>
       <ModelProgress
         label="Whisper"
@@ -70,7 +81,7 @@ export default function AiStatusChip() {
         ready={whisperLoaded}
       />
       <ModelProgress
-        label="MiniLM"
+        label="Embedder"
         loaded={semanticProgress.loaded}
         total={semanticProgress.total}
         status={semanticProgress.status}

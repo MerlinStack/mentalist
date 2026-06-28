@@ -187,13 +187,14 @@ export const OperatorPage: React.FC = () => {
   const displayVerse = previewVerse || activeVerse;
 
   return (
-    <div className="min-h-screen bg-[#080D1C] text-slate-100 flex flex-col font-sans antialiased selection:bg-[#C9973A]/30">
+    <div className="min-h-screen text-slate-100 flex flex-col font-sans antialiased selection:bg-[#C9973A]/30">
 
       {/* Ambient floating orbs */}
       <FloatingOrbs />
 
-      {/* HEADER with enhanced controls */}
-      <header className="h-16 border-b border-[#2D3A5C]/40 bg-[#1A2035]/80 backdrop-blur-xl flex items-center justify-between px-6 shadow-lg z-20">
+      {/* HEADER — deep frosted navigation */}
+      <header className="h-16 border-b border-white/[0.04] flex items-center justify-between px-6 shadow-lg z-20"
+        style={{ background: 'rgba(10, 15, 30, 0.5)', backdropFilter: 'blur(12px)' }}>
         <div className="flex items-center gap-3">
           <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-[#C9973A] to-[#FFD580] shadow-lg shadow-[#C9973A]/20 flex items-center justify-center font-bold text-sm text-[#080D1C]">
             D
@@ -203,72 +204,82 @@ export const OperatorPage: React.FC = () => {
             <p className="text-[10px] text-slate-400 font-mono tracking-tight">AI SCRIPTURE ENGINE v1.2</p>
           </div>
 
-          {/* Mode Tabs */}
+          {/* Mode Tabs — glass segmented control */}
           <div className="ml-6 flex items-center gap-1 border-l border-[#2D3A5C]/40 pl-6">
-            {MODES.map((m) => (
-              <button
-                key={m}
-                onClick={() => setMode(m)}
-                className={`px-3 py-1 rounded text-[11px] font-medium transition ${
-                  mode === m
-                    ? 'text-[#C9973A] bg-[#C9973A]/10 border border-[#C9973A]/20'
-                    : 'text-slate-500 hover:text-slate-300 border border-transparent'
-                }`}
-              >
-                {m}
-              </button>
-            ))}
+            <div className="flex rounded-lg bg-[#1A2035]/40 backdrop-blur-md border border-white/[0.04] p-0.5">
+              {MODES.map((m) => (
+                <button
+                  key={m}
+                  onClick={() => setMode(m)}
+                  className={`px-3 py-1 rounded-md text-[11px] font-medium transition-all duration-200 ${
+                    mode === m
+                      ? 'text-[#C9973A] bg-[#C9973A]/12 shadow-sm border border-[#C9973A]/20'
+                      : 'text-slate-500 hover:text-slate-300 border border-transparent hover:bg-white/[0.03]'
+                  }`}
+                >
+                  {m}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 
         <div className="flex items-center gap-3">
-          {/* AI Status */}
-          <div className="flex items-center gap-2">
-            <span className={`text-[10px] ${whisperLoaded ? 'text-emerald-400' : 'text-slate-500'} font-mono`}>
+          {/* AI Status — glowing indicators */}
+          <div className="flex items-center gap-3 bg-[#1A2035]/20 backdrop-blur-md rounded-lg px-3 py-1.5 border border-white/[0.03]">
+            <span className={`text-[10px] font-mono flex items-center gap-1.5 ${whisperLoaded ? 'text-emerald-400' : 'text-slate-500'}`}>
+              <span className={`h-1.5 w-1.5 rounded-full ${whisperLoaded ? 'bg-emerald-500' : 'bg-slate-600'}`}
+                style={whisperLoaded ? { filter: 'drop-shadow(0 0 6px rgba(16, 185, 129, 0.6))' } : {}} />
               WHISPER {whisperLoaded ? '✓' : '⟳'}
             </span>
-            <span className={`text-[10px] ${semanticLoaded ? 'text-indigo-400' : 'text-slate-500'} font-mono`}>
+            <span className={`text-[10px] font-mono flex items-center gap-1.5 ${semanticLoaded ? 'text-indigo-400' : 'text-slate-500'}`}>
+              <span className={`h-1.5 w-1.5 rounded-full ${semanticLoaded ? 'bg-indigo-400' : 'bg-slate-600'}`}
+                style={semanticLoaded ? { filter: 'drop-shadow(0 0 6px rgba(129, 140, 248, 0.6))' } : {}} />
               MINILM {semanticLoaded ? '✓' : '⟳'}
             </span>
           </div>
 
           {/* AiStatusChip popover */}
           <div className="relative group">
-            <span className="text-[10px] text-slate-500 font-mono cursor-help border-b border-dotted border-slate-600">
+            <span className="text-[10px] text-slate-500 font-mono cursor-help border-b border-dotted border-slate-500/60 hover:text-slate-300 transition-colors">
               models
             </span>
-            <div className="absolute top-full right-0 mt-2 hidden group-hover:block z-50">
+            <div className="absolute top-full right-0 mt-2 hidden group-hover:block z-50 animate-fadeIn">
               <AiStatusChip />
             </div>
           </div>
 
-          {/* Queue count badge */}
+          {/* Queue count badge — glowing */}
           {queue.length > 0 && (
-            <span className="text-[10px] font-mono text-amber-400 bg-amber-500/10 px-2 py-1 rounded border border-amber-500/30">
+            <span className="text-[10px] font-mono text-amber-400 bg-amber-500/10 px-2 py-1 rounded border border-amber-500/30"
+              style={{ boxShadow: '0 0 12px rgba(245, 158, 11, 0.1)' }}>
               Queue · <span className="font-bold">{queue.length}</span>
             </span>
           )}
 
-          {/* Mic Toggle */}
+          {/* Mic Toggle — glowing when active */}
           <button
             onClick={handleToggleMic}
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition border ${
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 border ${
               isListening
-                ? 'bg-rose-500/10 text-rose-400 border-rose-500/30 shadow-[0_0_12px_rgba(244,63,94,0.1)]'
-                : 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700'
+                ? 'bg-rose-500/10 text-rose-400 border-rose-500/30'
+                : 'bg-slate-800/50 text-slate-300 border-slate-700/50 hover:bg-slate-700/50 hover:border-slate-600'
             }`}
+            style={isListening ? { boxShadow: '0 0 16px rgba(244, 63, 94, 0.15)' } : {}}
           >
-            <span className={`h-1.5 w-1.5 rounded-full ${isListening ? 'bg-rose-500 animate-ping' : 'bg-slate-500'}`} />
+            <span className={`h-1.5 w-1.5 rounded-full ${isListening ? 'bg-rose-500 animate-ping' : 'bg-slate-500'}`}
+              style={isListening ? { filter: 'drop-shadow(0 0 6px rgba(244, 63, 94, 0.8))' } : {}} />
             {isListening ? 'Mute Console' : 'Activate Live Mic'}
           </button>
 
           <div className="h-4 w-[1px] bg-slate-700" />
 
-          {/* Push Live Button */}
+          {/* Push Live Button — glowing when enabled */}
           <button
             disabled={!displayVerse}
             onClick={handlePushLive}
-            className="px-4 py-1.5 text-xs font-semibold bg-gradient-to-r from-[#C9973A] to-[#FFD580] text-[#080D1C] rounded-lg shadow-md shadow-[#C9973A]/20 hover:brightness-110 disabled:opacity-30 disabled:pointer-events-none transition"
+            className="px-4 py-1.5 text-xs font-semibold bg-gradient-to-r from-[#C9973A] to-[#FFD580] text-[#080D1C] rounded-lg transition-all duration-200 disabled:opacity-30 disabled:pointer-events-none hover:scale-[1.02] active:scale-[0.98]"
+            style={displayVerse ? { boxShadow: '0 0 20px rgba(201, 151, 58, 0.25), 0 4px 12px rgba(201, 151, 58, 0.15)' } : {}}
           >
             Push Live →
           </button>
@@ -280,27 +291,31 @@ export const OperatorPage: React.FC = () => {
         {/* LEFT PANEL - Enhanced with AI features */}
         <section className="col-span-3 flex flex-col gap-4 h-full">
 
-          {/* Live Transcript with Waveform and AI detection */}
-          <div className="flex flex-col h-[280px] p-4 rounded-xl bg-[#1A2035]/40 backdrop-blur-xl border border-[#2D3A5C]/40 shadow-[0_8px_32px_rgba(0,0,0,0.37)]">
-            <div className="flex items-center justify-between mb-3 border-b border-white/5 pb-2">
+          {/* Live Transcript with Waveform and AI detection — premium glass */}
+          <div className="glass-premium flex flex-col h-[280px] p-4 rounded-xl shadow-[0_8px_32px_rgba(0,0,0,0.45)]">
+            <div className="flex items-center justify-between mb-3 border-b border-white/[0.04] pb-2">
               <div className="flex items-center gap-3">
-                <h3 className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Live Transcript</h3>
-                <span className="text-[10px] font-mono text-slate-500">{formatSessionTime()}</span>
+                <div className="w-1 h-4 rounded-full bg-gradient-to-b from-emerald-400/80 to-emerald-600/20" />
+                <h3 className="text-cinema-label">Live Transcript</h3>
+                <span className="text-[10px] font-mono text-slate-500/70">{formatSessionTime()}</span>
               </div>
               <div className="flex items-center gap-2">
                 {isProcessing && (
-                  <span className="text-[9px] text-amber-400 animate-pulse">PROCESSING...</span>
+                  <span className="text-[9px] text-amber-400 animate-pulse font-mono">PROCESSING</span>
                 )}
-                <span className={`text-[10px] px-1.5 py-0.5 rounded font-mono ${
-                  isListening ? 'bg-emerald-500/10 text-emerald-400' : 'bg-slate-800 text-slate-500'
-                }`}>
+                <span className={`text-[10px] px-1.5 py-0.5 rounded font-mono transition-all ${
+                  isListening
+                    ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                    : 'bg-slate-800/50 text-slate-500 border border-white/[0.04]'
+                }`}
+                  style={isListening ? { filter: 'drop-shadow(0 0 8px rgba(16, 185, 129, 0.25))' } : {}}>
                   {isListening ? 'LISTENING' : 'OFFLINE'}
                 </span>
               </div>
             </div>
 
-            {/* Waveform Visualization */}
-            <div className="h-12 mb-3 flex items-end gap-0.5">
+            {/* Waveform Visualization — neon pink-to-emerald */}
+            <div className={`h-12 mb-3 flex items-end gap-0.5 ${isListening ? 'animate-neon-wave' : ''}`}>
               {(() => {
                 const raw = audioLevel > 1 ? audioLevel / 100 : audioLevel;
                 const time = Date.now() / 200;
@@ -321,10 +336,11 @@ export const OperatorPage: React.FC = () => {
                   const getColor = () => {
                     if (!isActive) return '#1E293B';
                     const intensity = height / 100;
-                    if (intensity > 0.7) return `hsl(160, 80%, ${40 + intensity * 30}%)`;
-                    if (intensity > 0.4) return `hsl(200, 80%, ${40 + intensity * 30}%)`;
-                    return `hsl(220, 70%, ${30 + intensity * 40}%)`;
+                    if (intensity > 0.7) return `hsl(160, 80%, ${45 + intensity * 25}%)`;
+                    if (intensity > 0.4) return `hsl(330, 85%, ${45 + intensity * 20}%)`;
+                    return `hsl(340, 80%, ${35 + intensity * 30}%)`;
                   };
+                  const barGlow = isActive ? `0 0 ${8 + height * 0.08}px ${getColor()}` : 'none';
 
                   return (
                     <div
@@ -335,6 +351,7 @@ export const OperatorPage: React.FC = () => {
                         background: getColor(),
                         minHeight: '2px',
                         opacity: isActive ? 0.7 + (height / 100) * 0.3 : 0.3,
+                        boxShadow: barGlow,
                       }}
                     />
                   );
@@ -379,33 +396,37 @@ export const OperatorPage: React.FC = () => {
             </div>
           </div>
 
-          {/* Engine Infrastructure */}
-          <div className="p-4 rounded-xl bg-[#1A2035]/20 backdrop-blur-md border border-[#2D3A5C]/20 flex-1 text-[11px] font-mono space-y-2.5 text-slate-400 shadow-[0_8px_32px_rgba(0,0,0,0.25)]">
-            <h4 className="font-semibold uppercase text-[9px] tracking-wider text-slate-500 border-b border-white/5 pb-1 mb-1 flex items-center gap-2">
-              <span className="w-1.5 h-1.5 rounded-full bg-[#C9973A]" />
-              Engine Infrastructure
-            </h4>
-            <div className="flex justify-between">
-              <span>Whisper ASR:</span> 
-              <span className={whisperLoaded ? "text-emerald-400" : "text-slate-500"}>
-                {whisperLoaded ? '● Connected' : '⟳ Loading'}
+          {/* Engine Infrastructure — premium glass */}
+          <div className="glass-premium rounded-xl p-4 flex-1 text-[11px] font-mono space-y-2.5 text-slate-400 shadow-[0_8px_32px_rgba(0,0,0,0.45)]">
+            <div className="flex items-center gap-2 border-b border-white/[0.04] pb-2 mb-2">
+              <div className="w-1 h-3 rounded-full bg-gradient-to-b from-[#C9973A] to-[#C9973A]/30" />
+              <h4 className="text-cinema-label">Engine Infrastructure</h4>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-slate-500">Whisper ASR</span> 
+              <span className={`flex items-center gap-1.5 ${whisperLoaded ? "text-emerald-400" : "text-slate-500"}`}>
+                <span className={`h-1.5 w-1.5 rounded-full ${whisperLoaded ? 'bg-emerald-500' : 'bg-slate-600'}`}
+                  style={whisperLoaded ? { filter: 'drop-shadow(0 0 6px rgba(16, 185, 129, 0.6))' } : {}} />
+                {whisperLoaded ? 'Connected' : 'Loading'}
               </span>
             </div>
-            <div className="flex justify-between">
-              <span>MiniLM-L6:</span> 
-              <span className={semanticLoaded ? "text-emerald-400" : "text-slate-500"}>
-                {semanticLoaded ? '● Vector Ready' : '⟳ Loading'}
+            <div className="flex justify-between items-center">
+              <span className="text-slate-500">Embedder</span> 
+              <span className={`flex items-center gap-1.5 ${semanticLoaded ? "text-indigo-400" : "text-slate-500"}`}>
+                <span className={`h-1.5 w-1.5 rounded-full ${semanticLoaded ? 'bg-indigo-400' : 'bg-slate-600'}`}
+                  style={semanticLoaded ? { filter: 'drop-shadow(0 0 6px rgba(129, 140, 248, 0.6))' } : {}} />
+                {semanticLoaded ? 'Vector Ready' : 'Loading'}
               </span>
             </div>
-            <div className="flex justify-between">
-              <span>Core Core:</span> 
-              <span className="text-indigo-400">React 19 + TS 5.8</span>
+            <div className="flex justify-between items-center">
+              <span className="text-slate-500">Core</span> 
+              <span className="text-indigo-400/80">React 19 + TS 5.8</span>
             </div>
             
             {/* Session Timer */}
-            <div className="flex justify-between pt-2 border-t border-white/5 mt-2">
-              <span>Session:</span>
-              <span className="text-slate-300">{formatSessionTime()}</span>
+            <div className="flex justify-between items-center pt-2 border-t border-white/[0.04] mt-2">
+              <span className="text-slate-500">Session</span>
+              <span className="text-slate-300 font-semibold">{formatSessionTime()}</span>
             </div>
           </div>
         </section>
@@ -418,8 +439,9 @@ export const OperatorPage: React.FC = () => {
 
               <div className="flex-1 grid grid-cols-2 gap-6 h-full min-w-0">
 
-              {/* PREVIEW PANEL */}
-              <div className="relative rounded-2xl border border-[#2D3A5C] bg-[#1A2035]/30 backdrop-blur-xl flex flex-col shadow-[0_8px_32px_rgba(0,0,0,0.37)] transition-all duration-300 hover:border-[#C9973A]/30">
+              {/* PREVIEW PANEL — premium glass with gold hover glow */}
+              <div className="glass-premium rounded-2xl flex flex-col transition-all duration-300 hover:border-[#C9973A]/30"
+                style={{ boxShadow: '0 8px 32px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.03)' }}>
                 <VersePanel
                   kind="preview"
                   verse={chapterVerses[previewIdx] || displayVerse}
@@ -453,7 +475,7 @@ export const OperatorPage: React.FC = () => {
                       <button
                         onClick={handlePushLive}
                         disabled={!displayVerse}
-                        className="px-3 py-1 text-[10px] font-semibold bg-gradient-to-r from-[#C9973A] to-[#FFD580] text-[#080D1C] rounded-lg shadow-md shadow-[#C9973A]/20 hover:brightness-110 disabled:opacity-30 disabled:pointer-events-none transition"
+                        className="px-3 py-1 text-[10px] font-semibold bg-gradient-to-r from-[#C9973A] to-[#FFD580] text-[#080D1C] rounded-lg shadow-md shadow-[#C9973A]/20 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-30 disabled:pointer-events-none transition-all duration-200"
                       >
                         Transmit Live &rarr;
                       </button>
@@ -462,11 +484,18 @@ export const OperatorPage: React.FC = () => {
                 />
               </div>
 
-              {/* LIVE PANEL */}
-              <div className="relative rounded-2xl border-2 border-[#EF4444]/30 bg-[#0A0F1E]/60 backdrop-blur-xl flex flex-col shadow-[0_8px_32px_rgba(0,0,0,0.37)] transition-all duration-300">
+              {/* LIVE PANEL — premium glass with red glow border */}
+              <div className="glass-premium rounded-2xl flex flex-col transition-all duration-300"
+                style={{
+                  border: '2px solid rgba(239, 68, 68, 0.25)',
+                  boxShadow: currentLiveVerse
+                    ? '0 8px 32px rgba(0,0,0,0.45), 0 0 24px rgba(239, 68, 68, 0.08), inset 0 1px 0 rgba(255,255,255,0.03)'
+                    : '0 8px 32px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.03)',
+                }}>
                 <div className="flex items-center justify-between px-5 pt-4 pb-2 shrink-0">
                   <div className="flex items-center gap-2">
-                    <span className={`h-1.5 w-1.5 rounded-full ${currentLiveVerse ? 'bg-[#EF4444] animate-ping' : 'bg-slate-600'}`} />
+                    <span className={`h-1.5 w-1.5 rounded-full ${currentLiveVerse ? 'bg-[#EF4444] animate-ping' : 'bg-slate-600'}`}
+                      style={currentLiveVerse ? { filter: 'drop-shadow(0 0 8px rgba(239, 68, 68, 0.8))' } : {}} />
                     <span className="text-[10px] font-bold tracking-widest uppercase text-[#EF4444]">Live Projector Feed</span>
                   </div>
                   <div className="flex items-center gap-2">
@@ -499,10 +528,11 @@ export const OperatorPage: React.FC = () => {
 
               </div>
 
-              {/* QUEUE BOARD */}
-              <div className="w-52 shrink-0 relative rounded-2xl border border-[#2D3A5C]/40 bg-[#1A2035]/20 backdrop-blur-xl flex flex-col shadow-[0_8px_32px_rgba(0,0,0,0.37)] overflow-hidden">
+              {/* QUEUE BOARD — premium glass */}
+              <div className="glass-premium w-52 shrink-0 relative rounded-2xl flex flex-col overflow-hidden">
                 <div className="flex items-center justify-between px-5 pt-4 pb-2 shrink-0">
                   <div className="flex items-center gap-2">
+                    <div className="w-1 h-3 rounded-full bg-gradient-to-b from-[#FFD580] to-[#C9973A]/30" />
                     <span className="text-[10px] font-bold tracking-widest uppercase text-[#FFD580]">Queue</span>
                     {queue.length > 0 && (
                       <span className="text-[10px] font-mono text-slate-400 bg-slate-800/50 px-1.5 py-0.5 rounded">
@@ -535,7 +565,7 @@ export const OperatorPage: React.FC = () => {
                               projectVerse(v);
                               removeFromQueue(i);
                             }}
-                            className="px-2 py-1 text-[9px] font-semibold bg-gradient-to-r from-[#C9973A] to-[#FFD580] text-[#080D1C] rounded shadow-md shadow-[#C9973A]/20 hover:brightness-110 transition"
+                            className="px-2 py-1 text-[9px] font-semibold bg-gradient-to-r from-[#C9973A] to-[#FFD580] text-[#080D1C] rounded shadow-md shadow-[#C9973A]/20 hover:scale-[1.02] active:scale-[0.98] transition-all duration-200"
                           >
                             Live
                           </button>
@@ -558,7 +588,7 @@ export const OperatorPage: React.FC = () => {
                         projectVerse(queue[0]);
                         removeFromQueue(0);
                       }}
-                      className="w-full py-2 text-[10px] font-semibold bg-gradient-to-r from-[#C9973A] to-[#FFD580] text-[#080D1C] rounded-lg shadow-md shadow-[#C9973A]/20 hover:brightness-110 transition"
+                      className="w-full py-2 text-[10px] font-semibold bg-gradient-to-r from-[#C9973A] to-[#FFD580] text-[#080D1C] rounded-lg shadow-md shadow-[#C9973A]/20 hover:scale-[1.02] active:scale-[0.98] transition-all duration-200"
                     >
                       Project Next &rarr;
                     </button>
@@ -568,10 +598,10 @@ export const OperatorPage: React.FC = () => {
 
             </div>
           ) : mode === "Music" ? (
-            <div className="h-full rounded-2xl border border-[#2D3A5C]/40 bg-[#1A2035]/20 backdrop-blur-xl p-8 flex flex-col items-center justify-center text-center shadow-[0_8px_32px_rgba(0,0,0,0.37)]">
-              <div className="text-5xl mb-4 opacity-30">🎵</div>
-              <h2 className="text-lg font-semibold text-slate-300 mb-2">Music Mode</h2>
-              <p className="text-xs text-slate-500 max-w-md">
+            <div className="glass-premium h-full rounded-2xl p-8 flex flex-col items-center justify-center text-center">
+              <div className="text-5xl mb-4 opacity-20">🎵</div>
+              <h2 className="text-lg font-semibold text-slate-300 mb-2 tracking-wide">Music Mode</h2>
+              <p className="text-xs text-slate-500 max-w-md leading-relaxed">
                 Queue and display song lyrics, chord charts, and worship media.
                 Connect your CCLI or song library to get started.
               </p>
@@ -581,10 +611,10 @@ export const OperatorPage: React.FC = () => {
               </div>
             </div>
           ) : (
-            <div className="h-full rounded-2xl border border-[#2D3A5C]/40 bg-[#1A2035]/20 backdrop-blur-xl p-8 flex flex-col items-center justify-center text-center shadow-[0_8px_32px_rgba(0,0,0,0.37)]">
-              <div className="text-5xl mb-4 opacity-30">📺</div>
-              <h2 className="text-lg font-semibold text-slate-300 mb-2">Media Mode</h2>
-              <p className="text-xs text-slate-500 max-w-md">
+            <div className="glass-premium h-full rounded-2xl p-8 flex flex-col items-center justify-center text-center">
+              <div className="text-5xl mb-4 opacity-20">📺</div>
+              <h2 className="text-lg font-semibold text-slate-300 mb-2 tracking-wide">Media Mode</h2>
+              <p className="text-xs text-slate-500 max-w-md leading-relaxed">
                 Play video backgrounds, sermon slides, and presentation media
                 alongside your scripture projection feed.
               </p>
