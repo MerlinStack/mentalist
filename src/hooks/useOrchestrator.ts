@@ -12,6 +12,7 @@ import { fetchMultipleVerses } from "../api/bible";
 import { getApiCode } from "../data/versions";
 import { isCloudflareConfigured, transcribeViaCloudflare } from "../gateway/cloudflare";
 import { isLovableGatewayConfigured, transcribeViaLovable } from "../gateway/lovable";
+import { lookupEngine } from "../services/scriptureLookup";
 
 function normalise(v: any) {
   const ref = v.ref || v.reference || "";
@@ -26,7 +27,7 @@ export function useOrchestrator() {
 
   const { stream, audioLevel, startCapture, stopCapture } = useAudioCapture();
   const { isModelLoaded: whisperLoaded, transcribe, loadModel: loadWhisper } = useTranscription();
-  const { searchSemantic, isLoaded: semanticLoaded } = useSemanticWorker();
+  const { searchSemantic, loadEmbeddings, isLoaded: semanticLoaded } = useSemanticWorker();
 
   const [modelsReady, setModelsReady] = useState(false);
 
@@ -34,6 +35,49 @@ export function useOrchestrator() {
     channelRef.current = new BroadcastChannel("scriptureflow-projection");
     return () => channelRef.current?.close();
   }, []);
+
+  // Load full KJV corpus into inverted-token lookup engine
+  useEffect(() => {
+    fetch("/bible/verses.json")
+      .then((r) => {
+        if (!r.ok) throw new Error("verses.json not found — run npm run generate-embeddings");
+        return r.json();
+      })
+      .then((verses) => {
+        lookupEngine.loadDatabase(
+          verses.map((v: any) => ({
+            b: v.book,
+            c: v.chapter,
+            v: v.verse,
+            t: v.text,
+          })),
+        );
+      })
+      .catch((err) => console.warn("Lookup engine unavailable:", err.message));
+  }, []);
+
+  // Eagerly load Whisper model on mount (not deferred until mic toggle)
+  useEffect(() => {
+    loadWhisper().then((ready) => {
+      if (!ready) console.warn("Whisper model failed to load — transcription unavailable");
+    });
+  }, [loadWhisper]);
+
+  // Auto-load pre-computed embeddings into semantic worker once ready
+  useEffect(() => {
+    if (!semanticLoaded) return;
+    fetch("/bible/embeddings.json")
+      .then((r) => {
+        if (!r.ok) throw new Error("embeddings.json not found — run npm run generate-embeddings");
+        return r.json();
+      })
+      .then((embeddings) => {
+        if (embeddings.length > 0) {
+          loadEmbeddings(embeddings);
+        }
+      })
+      .catch((err) => console.warn("Semantic embeddings unavailable:", err.message));
+  }, [semanticLoaded, loadEmbeddings]);
 
   const pushToProjection = useCallback(
     (verse: any) => {
@@ -65,7 +109,7 @@ export function useOrchestrator() {
 
   const processTranscriptChunk = useCallback(
     async (text: string) => {
-      if (!text || text.length < 3) return;
+      if (!text || text.length < 1) return;
       store.setProcessing(true);
       store.appendTranscript(text);
       scripture.setTranscript(text);
@@ -86,23 +130,46 @@ export function useOrchestrator() {
         await fetchVersesAndProject(deduped);
       }
 
-      if (deduped.length === 0 && semanticLoaded) {
-        try {
-          const results = await searchSemantic(text);
-          if (results.length > 0) {
-            const best = results[0];
-            if (best.score > 0.55) {
-              scripture.setDetectionResult({
-                verse: null,
-                book: best.book,
-                chapter: best.chapter,
-                confidence: Math.round(best.score * 100),
-                source: "semantic",
-              });
+      if (deduped.length === 0) {
+        // Fast pass — inverted-token lookup (<2ms)
+        const fastMatch = lookupEngine.reverseLookup(text, 75);
+        if (fastMatch) {
+          store.setDetectedVerse({
+            reference: fastMatch.ref,
+            text: fastMatch.text,
+            book: fastMatch.book,
+            chapter: fastMatch.chapter,
+            verse: fastMatch.verse,
+            translation: scripture.activeTranslation,
+            ref: fastMatch.ref,
+          });
+          await fetchVersesAndProject([fastMatch.ref]);
+          store.setProcessing(false);
+          return;
+        }
+
+        if (semanticLoaded) {
+          try {
+            const results = await searchSemantic(text);
+            if (results.length > 0) {
+              const best = results[0];
+              if (best.score > 0.3) {
+                const refStr = `${best.book} ${best.chapter}:${best.verse}`;
+                store.setDetectedVerse({
+                  reference: refStr,
+                  text: "",
+                  book: best.book,
+                  chapter: best.chapter,
+                  verse: best.verse,
+                  translation: scripture.activeTranslation,
+                  ref: refStr,
+                });
+                await fetchVersesAndProject([refStr]);
+              }
             }
+          } catch {
+            // fallback to regex only
           }
-        } catch {
-          // fallback to regex only
         }
       }
 
@@ -128,7 +195,7 @@ export function useOrchestrator() {
           text = await transcribe(float32.buffer as ArrayBuffer);
         }
 
-        if (text && text.length > 3) {
+        if (text && text.length > 0) {
           await processTranscriptChunk(text);
         }
       } catch (err) {
@@ -179,6 +246,66 @@ export function useOrchestrator() {
     [processTranscriptChunk],
   );
 
+  const searchUtterance = useCallback(
+    async (text: string) => {
+      if (!text || text.length < 3) return;
+      const { matches, explicit, implicit } = (() => {
+        const regex = extractScriptureFromText(text);
+        const ctx = analyzeWithContext(text);
+        return { matches: regex.matches, ...ctx };
+      })();
+      const refs = [...explicit, ...implicit]
+        .filter((m) => m.confidence !== "low")
+        .map((m) => `${m.book} ${m.chapter}:${m.verse}`);
+      const deduped = [...new Set(refs)];
+
+      if (deduped.length > 0) {
+        await fetchVersesAndProject(deduped);
+        return;
+      }
+
+      // Fast pass — inverted-token lookup (<2ms, no model needed)
+      const fastMatch = lookupEngine.reverseLookup(text, 75);
+      if (fastMatch) {
+        store.setDetectedVerse({
+          reference: fastMatch.ref,
+          text: fastMatch.text,
+          book: fastMatch.book,
+          chapter: fastMatch.chapter,
+          verse: fastMatch.verse,
+          translation: scripture.activeTranslation,
+          ref: fastMatch.ref,
+        });
+        await fetchVersesAndProject([fastMatch.ref]);
+        return;
+      }
+
+      if (!semanticLoaded) return;
+      try {
+        const results = await searchSemantic(text);
+        if (results.length > 0) {
+          const best = results[0];
+          if (best.score > 0.3) {
+            const refStr = `${best.book} ${best.chapter}:${best.verse}`;
+            store.setDetectedVerse({
+              reference: refStr,
+              text: "",
+              book: best.book,
+              chapter: best.chapter,
+              verse: best.verse,
+              translation: scripture.activeTranslation,
+              ref: refStr,
+            });
+            await fetchVersesAndProject([refStr]);
+          }
+        }
+      } catch {
+        // fallback to regex only
+      }
+    },
+    [store, scripture, fetchVersesAndProject, semanticLoaded, searchSemantic],
+  );
+
   useEffect(() => {
     return () => {
       stopCapture();
@@ -200,6 +327,7 @@ export function useOrchestrator() {
     startListening,
     stopListening,
     detectText,
+    searchUtterance,
     pushToProjection,
     fetchVerses: fetchVersesAndProject,
   };

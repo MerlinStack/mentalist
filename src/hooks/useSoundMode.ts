@@ -1,12 +1,15 @@
 import { useEffect, useRef } from 'react';
 import { useSoundStore } from '../store/soundStore';
 import { useScriptureStore } from '../store/scriptureStore';
-import { parseScriptureReference } from '../utils/scriptureParser';
+import { parseScriptureReference, formatReference } from '../utils/scriptureParser';
 import { fetchVerse } from '../api/bible';
 
-export function useSoundMode() {
+export function useSoundMode(opts?: { utteranceRef?: { current: ((text: string) => void) | undefined } }) {
   const isListening = useSoundStore((state) => state.isListening);
   const recognitionRef = useRef<any>(null);
+  const restartTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const utteranceRef = useRef<((text: string) => void) | undefined>(undefined);
+  utteranceRef.current = opts?.utteranceRef?.current;
 
   const startListening = () => {
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
@@ -19,6 +22,7 @@ export function useSoundMode() {
     recognition.continuous = true;
     recognition.interimResults = true;
     recognition.lang = 'en-US';
+    recognition.maxAlternatives = 5;
 
     recognition.onstart = () => {
       useSoundStore.setState({ isListening: true });
@@ -46,7 +50,8 @@ export function useSoundMode() {
         const parsed = parseScriptureReference(finalText);
         if (parsed && parsed.length > 0) {
           try {
-            const data = await fetchVerse(parsed[0], 'kjv');
+            const ref = parsed[0];
+            const data = await fetchVerse(formatReference(ref.book, ref.chapter, ref.verse), 'kjv');
             if (data) {
               useScriptureStore.setState({
                 activeVerse: {
@@ -62,17 +67,25 @@ export function useSoundMode() {
           } catch (err) {
             console.error("Failed auto-fetching verse match:", err);
           }
+        } else if (utteranceRef.current) {
+          utteranceRef.current(finalText);
         }
       }
     };
 
     recognition.onerror = (err: any) => {
       console.error("Speech Recognition runtime error:", err.error);
+      const fatalErrors = ["not-allowed", "service-not-allowed", "aborted"];
+      if (fatalErrors.includes(err.error)) {
+        useSoundStore.setState({ isListening: false });
+      }
     };
 
     recognition.onend = () => {
       if (useSoundStore.getState().isListening) {
-        recognition.start();
+        restartTimeoutRef.current = setTimeout(() => {
+          startListening();
+        }, 300);
       }
     };
 
@@ -82,13 +95,21 @@ export function useSoundMode() {
 
   const stopListening = () => {
     useSoundStore.setState({ isListening: false });
+    if (restartTimeoutRef.current) {
+      clearTimeout(restartTimeoutRef.current);
+      restartTimeoutRef.current = null;
+    }
     if (recognitionRef.current) {
       recognitionRef.current.stop();
+      recognitionRef.current = null;
     }
   };
 
   useEffect(() => {
     return () => {
+      if (restartTimeoutRef.current) {
+        clearTimeout(restartTimeoutRef.current);
+      }
       if (recognitionRef.current) {
         recognitionRef.current.stop();
       }

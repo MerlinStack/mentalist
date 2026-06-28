@@ -1,4 +1,5 @@
 const TARGET_RATE = 16000;
+const GAIN = 4.0;
 
 export function downsampleTo16kHz(audioData: Float32Array, sourceRate: number): Float32Array {
   if (sourceRate === TARGET_RATE) return audioData;
@@ -36,6 +37,9 @@ export function audioBlobToFloat32(blob: Blob): Promise<Float32Array> {
         const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
         const channelData = audioBuffer.getChannelData(0);
         const downsampled = downsampleTo16kHz(channelData, audioBuffer.sampleRate);
+        for (let i = 0; i < downsampled.length; i++) {
+          downsampled[i] = Math.max(-1, Math.min(1, downsampled[i] * GAIN));
+        }
         await audioCtx.close();
         resolve(downsampled);
       } catch (err) {

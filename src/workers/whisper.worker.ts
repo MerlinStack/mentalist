@@ -1,6 +1,4 @@
-import { pipeline, env } from "@huggingface/transformers";
-
-env.localModelPath = "/models/";
+import { pipeline } from "@huggingface/transformers";
 
 let transcriber: any = null;
 

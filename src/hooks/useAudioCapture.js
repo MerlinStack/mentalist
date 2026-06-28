@@ -20,20 +20,20 @@ export function useAudioCapture() {
     try {
       const micStream = await navigator.mediaDevices.getUserMedia({
         audio: {
-          echoCancellation: true,
-          noiseSuppression: true,
-          sampleRate: 16000,
+          echoCancellation: false,
+          noiseSuppression: false,
+          sampleRate: 48000,
         },
       });
       streamRef.current = micStream;
       setStream(micStream);
       onChunkRef.current = onChunk;
 
-      const audioContext = new AudioContext({ sampleRate: 16000 });
+      const audioContext = new AudioContext({ sampleRate: 48000 });
       audioContextRef.current = audioContext;
       const source = audioContext.createMediaStreamSource(micStream);
       const analyser = audioContext.createAnalyser();
-      analyser.fftSize = 256;
+      analyser.fftSize = 2048;
       analyserRef.current = analyser;
       source.connect(analyser);
 
@@ -42,7 +42,7 @@ export function useAudioCapture() {
         analyser.getByteFrequencyData(dataArray);
         let sum = 0;
         for (let i = 0; i < dataArray.length; i++) sum += dataArray[i];
-        const level = Math.min(Math.round((sum / dataArray.length / 255) * 100), 100);
+        const level = Math.min(Math.round((sum / dataArray.length / 255) * 200), 100);
         setAudioLevel(level);
         useSoundStore.getState().setAudioLevel(level);
         rafRef.current = requestAnimationFrame(tick);

@@ -4,8 +4,11 @@ import { useScriptureStore } from '../store/scriptureStore';
 import { useProjection } from '../hooks/useProjection';
 import { useProjectionStore } from '../store/projectionStore';
 import { useSoundMode } from '../hooks/useSoundMode';
-import { AudioMeter } from '../components/sound/AudioMeter';
+
 import { useOrchestrator } from '../hooks/useOrchestrator';
+import AiStatusChip from '../components/ai/AiStatusChip';
+import VersePanel from '../components/verse/VersePanel';
+import { getChapter } from '../api/bible';
 import type { Verse } from '../api/bible';
 
 // Types and constants from second image
@@ -43,7 +46,8 @@ function FloatingOrbs() {
 export const OperatorPage: React.FC = () => {
   const { transcript, recentChunk, isListening } = useSoundStore();
   const { activeVerse } = useScriptureStore();
-  const { startListening, stopListening } = useSoundMode();
+  const utteranceRef = useRef<(text: string) => void>();
+  const { startListening, stopListening } = useSoundMode({ utteranceRef });
   const { 
     projectVerse, 
     clearProjection, 
@@ -51,6 +55,7 @@ export const OperatorPage: React.FC = () => {
   } = useProjection();
 
   const queue = useProjectionStore((s) => s.queue);
+  const addToQueue = useProjectionStore((s) => s.addToQueue);
   const removeFromQueue = useProjectionStore((s) => s.removeFromQueue);
 
   // AI pipeline from second image
@@ -61,7 +66,12 @@ export const OperatorPage: React.FC = () => {
     whisperLoaded,
     semanticLoaded,
     pushToProjection,
+    searchUtterance,
   } = useOrchestrator();
+
+  // Wire semantic fallback: when Web Speech API hears speech with no explicit
+  // reference, the orchestrator's regex+semantic pipeline tries to identify it.
+  utteranceRef.current = searchUtterance;
 
   // State from second image
   const [mode, setMode] = useState<(typeof MODES)[number]>("Scripture");
@@ -69,11 +79,48 @@ export const OperatorPage: React.FC = () => {
   const [elapsed, setElapsed] = useState(0);
   const [previewVerse, setPreviewVerse] = useState<Verse | null>(null);
   const [detectionHistory, setDetectionHistory] = useState<DetectionEntry[]>([]);
-  const [showQueue, setShowQueue] = useState(false);
-  const [queueCount, setQueueCount] = useState(0);
   const prevDetectedRef = useRef<string | null>(null);
-  const queueRef = useRef<HTMLDivElement | null>(null);
   const channelRef = useRef<BroadcastChannel | null>(null);
+  const transcriptRef = useRef<HTMLDivElement | null>(null);
+
+  // Chapter cache for sequential navigation
+  const [chapterVerses, setChapterVerses] = useState<Verse[]>([]);
+  const [previewIdx, setPreviewIdx] = useState(0);
+  const chapterBookRef = useRef<string | null>(null);
+  const chapterNumRef = useRef<number | null>(null);
+
+  const navigateVerse = (dir: 'prev' | 'next') => {
+    if (chapterVerses.length === 0) return;
+    setPreviewIdx((i) => {
+      if (dir === 'next') return (i + 1) % chapterVerses.length;
+      return i === 0 ? chapterVerses.length - 1 : i - 1;
+    });
+  };
+
+  // Load chapter when a verse is set on the preview
+  useEffect(() => {
+    const src = previewVerse || activeVerse || detectedVerse;
+    if (!src) return;
+    const book = src.book || '';
+    const ch = src.chapter || 0;
+    if (!book || !ch || (book === chapterBookRef.current && ch === chapterNumRef.current)) return;
+    chapterBookRef.current = book;
+    chapterNumRef.current = ch;
+    getChapter(book, ch, 'kjv').then((verses) => {
+      if (verses.length > 0) {
+        setChapterVerses(verses);
+        const idx = verses.findIndex((v) => v.verse === src.verse);
+        setPreviewIdx(idx >= 0 ? idx : 0);
+      }
+    });
+  }, [previewVerse, activeVerse, detectedVerse]);
+
+  // Auto-scroll transcript when new speech arrives
+  useEffect(() => {
+    if (transcriptRef.current) {
+      transcriptRef.current.scrollTop = transcriptRef.current.scrollHeight;
+    }
+  }, [transcript, recentChunk]);
 
   // Update preview verse when detected
   useEffect(() => {
@@ -97,11 +144,6 @@ export const OperatorPage: React.FC = () => {
     }
   }, [detectedVerse, transcript]);
 
-  // Update queue count
-  useEffect(() => {
-    setQueueCount(queue.length);
-  }, [queue]);
-
   // System timer
   useEffect(() => {
     const id = setInterval(() => setElapsed((e) => e + 1), 1000);
@@ -114,19 +156,8 @@ export const OperatorPage: React.FC = () => {
     return () => channelRef.current?.close();
   }, []);
 
-  // Dropdown click-away
-  useEffect(() => {
-    const handleClick = (e: MouseEvent) => {
-      if (queueRef.current && !queueRef.current.contains(e.target as Node)) {
-        setShowQueue(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, []);
-
   const handlePushLive = () => {
-    const verse = previewVerse || activeVerse;
+    const verse = chapterVerses[previewIdx] || previewVerse || activeVerse || detectedVerse;
     if (verse) {
       projectVerse(verse);
       pushToProjection(verse);
@@ -171,6 +202,23 @@ export const OperatorPage: React.FC = () => {
             <h1 className="font-semibold text-sm tracking-wide text-white">D'mentalist</h1>
             <p className="text-[10px] text-slate-400 font-mono tracking-tight">AI SCRIPTURE ENGINE v1.2</p>
           </div>
+
+          {/* Mode Tabs */}
+          <div className="ml-6 flex items-center gap-1 border-l border-[#2D3A5C]/40 pl-6">
+            {MODES.map((m) => (
+              <button
+                key={m}
+                onClick={() => setMode(m)}
+                className={`px-3 py-1 rounded text-[11px] font-medium transition ${
+                  mode === m
+                    ? 'text-[#C9973A] bg-[#C9973A]/10 border border-[#C9973A]/20'
+                    : 'text-slate-500 hover:text-slate-300 border border-transparent'
+                }`}
+              >
+                {m}
+              </button>
+            ))}
+          </div>
         </div>
 
         <div className="flex items-center gap-3">
@@ -184,42 +232,22 @@ export const OperatorPage: React.FC = () => {
             </span>
           </div>
 
-          {/* Queue Button */}
-          <div ref={queueRef} className="relative">
-            <button
-              onClick={() => setShowQueue((v) => !v)}
-              className={`px-3 py-1.5 text-xs font-medium rounded-lg transition border ${
-                queueCount > 0 
-                  ? 'bg-amber-500/10 text-amber-400 border-amber-500/30' 
-                  : 'bg-slate-800 text-slate-400 border-slate-700'
-              }`}
-            >
-              Queue · <span className="font-bold">{queueCount}</span>
-            </button>
-            
-            {showQueue && (
-              <div className="absolute top-full right-0 mt-2 w-72 max-h-80 overflow-y-auto bg-[#1A2035] border border-[#2D3A5C] rounded-xl shadow-2xl p-2 z-50">
-                {queue.length > 0 ? (
-                  queue.map((verse, i) => (
-                    <div key={i} className="flex items-center justify-between p-2 hover:bg-white/5 rounded-lg">
-                      <div>
-                        <div className="text-xs font-medium text-white">{verse.reference}</div>
-                        <div className="text-[10px] text-slate-400 truncate">{verse.text.slice(0, 40)}...</div>
-                      </div>
-                      <button 
-                        onClick={() => removeFromQueue(i)}
-                        className="text-slate-500 hover:text-red-400 text-xs"
-                      >
-                        ✕
-                      </button>
-                    </div>
-                  ))
-                ) : (
-                  <div className="text-center text-slate-500 text-xs py-4">Queue is empty</div>
-                )}
-              </div>
-            )}
+          {/* AiStatusChip popover */}
+          <div className="relative group">
+            <span className="text-[10px] text-slate-500 font-mono cursor-help border-b border-dotted border-slate-600">
+              models
+            </span>
+            <div className="absolute top-full right-0 mt-2 hidden group-hover:block z-50">
+              <AiStatusChip />
+            </div>
           </div>
+
+          {/* Queue count badge */}
+          {queue.length > 0 && (
+            <span className="text-[10px] font-mono text-amber-400 bg-amber-500/10 px-2 py-1 rounded border border-amber-500/30">
+              Queue · <span className="font-bold">{queue.length}</span>
+            </span>
+          )}
 
           {/* Mic Toggle */}
           <button
@@ -252,9 +280,6 @@ export const OperatorPage: React.FC = () => {
         {/* LEFT PANEL - Enhanced with AI features */}
         <section className="col-span-3 flex flex-col gap-4 h-full">
 
-          {/* Audio Meter */}
-          <AudioMeter />
-
           {/* Live Transcript with Waveform and AI detection */}
           <div className="flex flex-col h-[280px] p-4 rounded-xl bg-[#1A2035]/40 backdrop-blur-xl border border-[#2D3A5C]/40 shadow-[0_8px_32px_rgba(0,0,0,0.37)]">
             <div className="flex items-center justify-between mb-3 border-b border-white/5 pb-2">
@@ -280,7 +305,7 @@ export const OperatorPage: React.FC = () => {
                 const raw = audioLevel > 1 ? audioLevel / 100 : audioLevel;
                 const time = Date.now() / 200;
                 return Array.from({ length: 50 }, (_, i) => {
-                  const isActive = isListening && raw > 0.05;
+                  const isActive = isListening && raw > 0.01;
                   const wavePosition = (i / 50) * Math.PI * 2;
 
                   let height;
@@ -318,7 +343,7 @@ export const OperatorPage: React.FC = () => {
             </div>
 
             {/* Transcript Text */}
-            <div className="flex-1 overflow-y-auto font-mono text-xs leading-relaxed space-y-2 text-slate-300 pr-1 select-text min-h-0">
+            <div ref={transcriptRef} className="flex-1 overflow-y-auto font-mono text-xs leading-relaxed space-y-2 text-slate-300 pr-1 select-text min-h-0">
               {isListening ? (
                 <div className="space-y-2">
                   {transcript && (
@@ -385,155 +410,190 @@ export const OperatorPage: React.FC = () => {
           </div>
         </section>
 
-        {/* RIGHT PANEL - Preview and Live boards */}
-        <section className="col-span-9 grid grid-cols-2 gap-6 h-full">
+        {/* RIGHT PANEL — mode-conditional content */}
+        <section className="col-span-9 h-full">
 
-          {/* PREVIEW PANEL */}
-          <div className="relative rounded-2xl border border-[#2D3A5C] bg-[#1A2035]/30 backdrop-blur-xl p-6 flex flex-col shadow-[0_8px_32px_rgba(0,0,0,0.37)] transition-all duration-300 hover:border-[#C9973A]/30">
+          {mode === "Scripture" ? (
+            <div className="flex gap-6 h-full">
 
-            {/* Header with Confidence and Next */}
-            <div className="flex items-center justify-between mb-4 pb-3 border-b border-white/5">
-              <div className="flex items-center gap-4">
-                <div>
-                  <span className="text-[9px] font-bold uppercase tracking-widest text-slate-400 block">Confidence</span>
-                  <span className="text-xl font-bold text-emerald-400">94%</span>
-                </div>
-                <div className="h-8 w-px bg-white/10" />
-                <div>
-                  <span className="text-[9px] font-bold uppercase tracking-widest text-slate-400 block">Next</span>
-                  <span className="text-xs font-medium text-slate-300">
-                    {queue.length > 0 ? queue[0].reference : '\u2014'}
-                  </span>
-                </div>
+              <div className="flex-1 grid grid-cols-2 gap-6 h-full min-w-0">
+
+              {/* PREVIEW PANEL */}
+              <div className="relative rounded-2xl border border-[#2D3A5C] bg-[#1A2035]/30 backdrop-blur-xl flex flex-col shadow-[0_8px_32px_rgba(0,0,0,0.37)] transition-all duration-300 hover:border-[#C9973A]/30">
+                <VersePanel
+                  kind="preview"
+                  verse={chapterVerses[previewIdx] || displayVerse}
+                  nextRef={
+                    chapterVerses.length > 0 && previewIdx + 1 < chapterVerses.length
+                      ? chapterVerses[previewIdx + 1].reference
+                      : queue.length > 0
+                        ? queue[0].reference
+                        : null
+                  }
+                  translation={TRANSLATIONS[translation]}
+                  actions={
+                    <>
+                      <button
+                        onClick={() => navigateVerse('prev')}
+                        className="text-[10px] text-slate-400 hover:text-white px-2.5 py-1 rounded-lg bg-slate-800/50 border border-slate-700/50 transition"
+                      >
+                        &larr; Prev
+                      </button>
+                      <button
+                        onClick={() => {
+                          const v = chapterVerses[previewIdx] || displayVerse;
+                          if (v) addToQueue(v);
+                          navigateVerse('next');
+                        }}
+                        className="text-[10px] text-slate-400 hover:text-white px-2.5 py-1 rounded-lg bg-slate-800/50 border border-slate-700/50 transition"
+                      >
+                        Next &rarr;
+                      </button>
+                      <div className="h-4 w-px bg-white/10" />
+                      <button
+                        onClick={handlePushLive}
+                        disabled={!displayVerse}
+                        className="px-3 py-1 text-[10px] font-semibold bg-gradient-to-r from-[#C9973A] to-[#FFD580] text-[#080D1C] rounded-lg shadow-md shadow-[#C9973A]/20 hover:brightness-110 disabled:opacity-30 disabled:pointer-events-none transition"
+                      >
+                        Transmit Live &rarr;
+                      </button>
+                    </>
+                  }
+                />
               </div>
 
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setPreviewVerse(null)}
-                  className="text-[10px] text-slate-400 hover:text-white px-3 py-1.5 rounded-lg bg-slate-800/50 border border-slate-700/50 transition"
-                >
-                  Clear
-                </button>
-                <button
-                  onClick={handlePushLive}
-                  disabled={!displayVerse}
-                  className="px-4 py-1.5 text-xs font-semibold bg-gradient-to-r from-[#C9973A] to-[#FFD580] text-[#080D1C] rounded-lg shadow-md shadow-[#C9973A]/20 hover:brightness-110 disabled:opacity-30 disabled:pointer-events-none transition flex items-center gap-1"
-                >
-                  Push Live →
-                </button>
-              </div>
-            </div>
-
-            {/* Scripture Content */}
-            {displayVerse ? (
-              <div className="flex-1 flex flex-col items-center justify-center text-center space-y-6 py-8 animate-verse-enter">
-                <div className="flex items-center gap-3">
-                  <span className="text-xs font-bold tracking-widest uppercase text-[#FFD580] font-mono px-3 py-1 bg-[#FFD580]/10 rounded-full border border-[#FFD580]/20">
-                    {displayVerse.reference} — {TRANSLATIONS[translation] || 'KJV'}
-                  </span>
-                </div>
-                <p className="text-2xl font-serif leading-relaxed text-white font-medium drop-shadow-md max-w-lg">
-                  &ldquo;{displayVerse.text}&rdquo;
-                </p>
-
-                {/* Detection history indicator */}
-                {detectionHistory.length > 0 && (
-                  <div className="text-[10px] text-slate-400 mt-4">
-                    <span>Detected: </span>
-                    <span className="text-emerald-400">{detectionHistory[0].ref}</span>
-                    <span className="text-slate-500 mx-2">·</span>
-                    <span>{detectionHistory[0].time}</span>
+              {/* LIVE PANEL */}
+              <div className="relative rounded-2xl border-2 border-[#EF4444]/30 bg-[#0A0F1E]/60 backdrop-blur-xl flex flex-col shadow-[0_8px_32px_rgba(0,0,0,0.37)] transition-all duration-300">
+                <div className="flex items-center justify-between px-5 pt-4 pb-2 shrink-0">
+                  <div className="flex items-center gap-2">
+                    <span className={`h-1.5 w-1.5 rounded-full ${currentLiveVerse ? 'bg-[#EF4444] animate-ping' : 'bg-slate-600'}`} />
+                    <span className="text-[10px] font-bold tracking-widest uppercase text-[#EF4444]">Live Projector Feed</span>
                   </div>
-                )}
-              </div>
-            ) : (
-              <div className="flex-1 flex flex-col items-center justify-center text-center space-y-4 py-8">
-                <p className="text-xs text-slate-500 font-mono italic">Awaiting audio or search input string streams...</p>
-                <p className="text-[10px] text-slate-600 font-sans max-w-xs">
-                  Scripture spoken or typed will display here for operator confirmation before live push.
-                </p>
-
-                {/* Detection history when empty */}
-                {detectionHistory.length > 0 && (
-                  <div className="w-full max-w-xs mt-4 text-left">
-                    <p className="text-[9px] text-slate-500 uppercase tracking-wider mb-2">Recent Detections</p>
-                    {detectionHistory.slice(0, 3).map((item, i) => (
-                      <div key={i} className="text-[10px] text-slate-400 py-1 border-b border-white/5 flex justify-between">
-                        <span>{item.ref}</span>
-                        <span>{item.confidence}% · {item.time}</span>
-                      </div>
-                    ))}
+                  <div className="flex items-center gap-2">
+                    {currentLiveVerse && (
+                      <button onClick={clearProjection} className="text-[10px] text-slate-400 hover:text-white px-2.5 py-1 rounded-lg bg-slate-800/50 border border-slate-700/50 transition">Clear</button>
+                    )}
+                    <button onClick={openProjector} className="text-[10px] text-slate-400 hover:text-white px-2.5 py-1 rounded-lg bg-slate-800/50 border border-slate-700/50 transition flex items-center gap-1"><span>Project</span><span className="text-[8px]">↗</span></button>
                   </div>
-                )}
-              </div>
-            )}
-          </div>
-
-          {/* LIVE PANEL */}
-          <div className="relative rounded-2xl border-2 border-[#EF4444]/30 bg-[#0A0F1E]/60 backdrop-blur-xl p-6 flex flex-col shadow-[0_8px_32px_rgba(0,0,0,0.37)] transition-all duration-300">
-
-            {/* Live Header */}
-            <div className="flex items-center justify-between mb-4 pb-3 border-b border-white/5">
-              <div className="flex items-center gap-2">
-                <span className={`h-1.5 w-1.5 rounded-full ${currentLiveVerse ? 'bg-[#EF4444] animate-ping' : 'bg-slate-600'}`} />
-                <span className="text-[10px] font-bold tracking-widest uppercase text-[#EF4444]">
-                  Live Projector Feed
-                </span>
-              </div>
-
-              <div className="flex items-center gap-2">
+                </div>
+                <VersePanel
+                  kind="live"
+                  verse={currentLiveVerse}
+                  translation={TRANSLATIONS[translation]}
+                />
                 {currentLiveVerse && (
-                  <button
-                    onClick={clearProjection}
-                    className="text-[10px] text-slate-400 hover:text-white px-3 py-1.5 rounded-lg bg-slate-800/50 border border-slate-700/50 transition"
-                  >
-                    Clear
-                  </button>
+                  <div className="flex items-center justify-center gap-2 text-[10px] text-[#EF4444] pb-4 shrink-0">
+                    <span className="h-1.5 w-1.5 rounded-full bg-[#EF4444] animate-pulse" />
+                    <span>LIVE</span>
+                    <span className="text-slate-500">·</span>
+                    <span className="text-slate-400">{formatSessionTime()}</span>
+                  </div>
                 )}
-                <button
-                  onClick={openProjector}
-                  className="text-[10px] text-slate-400 hover:text-white px-3 py-1.5 rounded-lg bg-slate-800/50 border border-slate-700/50 transition flex items-center gap-1"
-                >
-                  <span>Project</span>
-                  <span className="text-[8px]">↗</span>
-                </button>
-              </div>
-            </div>
-
-            {/* Live Content */}
-            {currentLiveVerse ? (
-              <div className="flex-1 flex flex-col items-center justify-center text-center space-y-6 py-8 animate-verse-enter">
-                <p className="text-2xl font-serif leading-relaxed text-white font-semibold max-w-lg">
-                  {currentLiveVerse.text}
-                </p>
-                <span className="text-xs font-mono text-slate-400 tracking-wider block uppercase font-bold text-[#4F6BFF]">
-                  {currentLiveVerse.reference}
-                </span>
-
-                {/* Live indicator */}
-                <div className="flex items-center gap-2 text-[10px] text-[#EF4444]">
-                  <span className="h-1.5 w-1.5 rounded-full bg-[#EF4444] animate-pulse" />
-                  <span>LIVE</span>
-                  <span className="text-slate-500">·</span>
-                  <span className="text-slate-400">{formatSessionTime()}</span>
-                </div>
-              </div>
-            ) : (
-              <div className="flex-1 flex flex-col items-center justify-center text-center space-y-4 py-8">
-                <div className="h-2 w-2 rounded-full bg-slate-700 mx-auto mb-2" />
-                <p className="text-sm text-slate-600 font-mono">Nothing projected yet</p>
-                <p className="text-[10px] text-slate-500 font-sans">Push a verse from Preview</p>
-
-                {/* Queue indicator if available */}
-                {queue.length > 0 && (
-                  <div className="mt-4 text-[10px] text-slate-400">
+                {!currentLiveVerse && queue.length > 0 && (
+                  <div className="text-center text-[10px] text-slate-400 pb-4 shrink-0">
                     <span className="text-[#FFD580]">●</span>
-                    <span className="ml-2">{queue.length} verse{queue.length > 1 ? 's' : ''} in queue</span>
+                    <span className="ml-1">{queue.length} verse{queue.length > 1 ? 's' : ''} in queue</span>
                   </div>
                 )}
               </div>
-            )}
-          </div>
+
+              </div>
+
+              {/* QUEUE BOARD */}
+              <div className="w-52 shrink-0 relative rounded-2xl border border-[#2D3A5C]/40 bg-[#1A2035]/20 backdrop-blur-xl flex flex-col shadow-[0_8px_32px_rgba(0,0,0,0.37)] overflow-hidden">
+                <div className="flex items-center justify-between px-5 pt-4 pb-2 shrink-0">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-bold tracking-widest uppercase text-[#FFD580]">Queue</span>
+                    {queue.length > 0 && (
+                      <span className="text-[10px] font-mono text-slate-400 bg-slate-800/50 px-1.5 py-0.5 rounded">
+                        {queue.length}
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex-1 overflow-y-auto px-5 pb-4 space-y-2">
+                  {queue.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center h-full text-center">
+                      <p className="text-[11px] text-slate-500 italic">Queue is empty</p>
+                      <p className="text-[9px] text-slate-600 mt-1">Stage verses from Preview to build your queue</p>
+                    </div>
+                  ) : (
+                    queue.map((v, i) => (
+                      <div key={`${v.reference || v.ref}-${i}`} className="flex items-start gap-3 p-2.5 rounded-lg bg-[#1A2035]/40 border border-[#2D3A5C]/20">
+                        <div className="flex-1 min-w-0">
+                          <span className="text-[10px] font-semibold text-[#C9973A] block truncate">
+                            {v.reference || v.ref}
+                          </span>
+                          <p className="text-[10px] text-slate-400 leading-relaxed mt-0.5 line-clamp-2">
+                            {v.text}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-1 shrink-0 pt-0.5">
+                          <button
+                            onClick={() => {
+                              projectVerse(v);
+                              removeFromQueue(i);
+                            }}
+                            className="px-2 py-1 text-[9px] font-semibold bg-gradient-to-r from-[#C9973A] to-[#FFD580] text-[#080D1C] rounded shadow-md shadow-[#C9973A]/20 hover:brightness-110 transition"
+                          >
+                            Live
+                          </button>
+                          <button
+                            onClick={() => removeFromQueue(i)}
+                            className="px-1.5 py-1 text-[9px] text-slate-500 hover:text-white bg-slate-800/50 border border-slate-700/50 rounded transition"
+                          >
+                            &times;
+                          </button>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+
+                {queue.length > 0 && (
+                  <div className="px-5 pb-4 shrink-0">
+                    <button
+                      onClick={() => {
+                        projectVerse(queue[0]);
+                        removeFromQueue(0);
+                      }}
+                      className="w-full py-2 text-[10px] font-semibold bg-gradient-to-r from-[#C9973A] to-[#FFD580] text-[#080D1C] rounded-lg shadow-md shadow-[#C9973A]/20 hover:brightness-110 transition"
+                    >
+                      Project Next &rarr;
+                    </button>
+                  </div>
+                )}
+              </div>
+
+            </div>
+          ) : mode === "Music" ? (
+            <div className="h-full rounded-2xl border border-[#2D3A5C]/40 bg-[#1A2035]/20 backdrop-blur-xl p-8 flex flex-col items-center justify-center text-center shadow-[0_8px_32px_rgba(0,0,0,0.37)]">
+              <div className="text-5xl mb-4 opacity-30">🎵</div>
+              <h2 className="text-lg font-semibold text-slate-300 mb-2">Music Mode</h2>
+              <p className="text-xs text-slate-500 max-w-md">
+                Queue and display song lyrics, chord charts, and worship media.
+                Connect your CCLI or song library to get started.
+              </p>
+              <div className="mt-6 flex items-center gap-2 text-[10px] text-slate-600 font-mono">
+                <span className="h-1.5 w-1.5 rounded-full bg-slate-600" />
+                Coming Soon
+              </div>
+            </div>
+          ) : (
+            <div className="h-full rounded-2xl border border-[#2D3A5C]/40 bg-[#1A2035]/20 backdrop-blur-xl p-8 flex flex-col items-center justify-center text-center shadow-[0_8px_32px_rgba(0,0,0,0.37)]">
+              <div className="text-5xl mb-4 opacity-30">📺</div>
+              <h2 className="text-lg font-semibold text-slate-300 mb-2">Media Mode</h2>
+              <p className="text-xs text-slate-500 max-w-md">
+                Play video backgrounds, sermon slides, and presentation media
+                alongside your scripture projection feed.
+              </p>
+              <div className="mt-6 flex items-center gap-2 text-[10px] text-slate-600 font-mono">
+                <span className="h-1.5 w-1.5 rounded-full bg-slate-600" />
+                Coming Soon
+              </div>
+            </div>
+          )}
 
         </section>
       </main>

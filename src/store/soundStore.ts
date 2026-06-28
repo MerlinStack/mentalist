@@ -52,7 +52,7 @@ const initialData = {
   recentChunk: "",
   detectedVerse: null as Verse | null,
   confidence: 0,
-  sensitivity: "medium" as const,
+  sensitivity: "high" as const,
   isProcessing: false,
   audioLevel: 0,
   currentBook: null as string | null,

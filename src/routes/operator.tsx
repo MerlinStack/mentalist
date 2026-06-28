@@ -22,6 +22,7 @@ function OperatorConsole() {
   const channelRef = useRef<BroadcastChannel | null>(null);
   const queueRef = useRef<HTMLDivElement | null>(null);
   const prevDetectedRef = useRef<string | null>(null);
+  const transcriptRef = useRef<HTMLDivElement | null>(null);
 
   const {
     isListening,
@@ -87,6 +88,12 @@ function OperatorConsole() {
       }
     }
   }, [detectedVerse, transcript]);
+
+  useEffect(() => {
+    if (transcriptRef.current) {
+      transcriptRef.current.scrollTop = transcriptRef.current.scrollHeight;
+    }
+  }, [transcript]);
 
   const pushToLive = (verse: Verse) => {
     if (!verse) return;
@@ -173,7 +180,7 @@ function OperatorConsole() {
             </div>
             <div className="flex items-end gap-[3px] h-10 px-2 bg-black/30 rounded-lg py-1.5">
               {Array.from({ length: 28 }, (_, i) => {
-                const isActive = isListening && audioLevel > 10;
+                const isActive = isListening && audioLevel > 2;
                 const liveHeight = isActive
                   ? `${Math.max(15, Math.min(100, audioLevel * (0.3 + 0.7 * ((Math.sin(i * 0.5) + 1) / 2))))}%`
                   : `${6 + (i % 4) * 6}%`;
@@ -184,9 +191,9 @@ function OperatorConsole() {
                     style={{
                       height: liveHeight,
                       background: isActive
-                        ? audioLevel > 60
+                        ? audioLevel > 40
                           ? "#f43f5e"
-                          : audioLevel > 35
+                          : audioLevel > 15
                             ? "#fbbf24"
                             : "linear-gradient(to top, #4f6bff, #818cf8)"
                         : "#1A2140",
@@ -210,7 +217,7 @@ function OperatorConsole() {
                 {isListening ? 'LISTENING' : 'OFFLINE'}
               </span>
             </div>
-            <div className="flex-1 overflow-y-auto font-mono text-xs leading-relaxed space-y-2 text-slate-300 pr-1 select-text">
+            <div ref={transcriptRef} className="flex-1 overflow-y-auto font-mono text-xs leading-relaxed space-y-2 text-slate-300 pr-1 select-text">
               {transcript ? (
                 <span className="text-slate-400 opacity-70">{transcript}</span>
               ) : (

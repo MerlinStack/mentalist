@@ -3,8 +3,8 @@ import { useSoundStore } from "../store/soundStore";
 
 export function useTranscription() {
   const [transcript, setTranscript] = useState("");
+  const [isModelLoaded, setIsModelLoaded] = useState(false);
   const workerRef = useRef<Worker | null>(null);
-  const isLoadedRef = useRef(false);
 
   useEffect(() => {
     workerRef.current = new Worker(new URL("../workers/whisper.worker", import.meta.url), {
@@ -19,7 +19,7 @@ export function useTranscription() {
       }
 
       if (type === "loaded") {
-        isLoadedRef.current = true;
+        setIsModelLoaded(true);
         useSoundStore.getState().setWhisperModelLoaded(true);
       }
 
@@ -35,8 +35,6 @@ export function useTranscription() {
       }
     };
 
-    workerRef.current.postMessage({ type: "load" });
-
     return () => {
       workerRef.current?.terminate();
     };
@@ -44,7 +42,7 @@ export function useTranscription() {
 
   const transcribe = useCallback((audioData: Float32Array | ArrayBuffer): Promise<string> => {
     return new Promise((resolve, reject) => {
-      if (!workerRef.current || !isLoadedRef.current) {
+      if (!workerRef.current || !isModelLoaded) {
         reject(new Error("Whisper model not loaded"));
         return;
       }
@@ -73,7 +71,7 @@ export function useTranscription() {
 
   const loadModel = useCallback((): Promise<boolean> => {
     return new Promise((resolve) => {
-      if (isLoadedRef.current) {
+      if (isModelLoaded) {
         resolve(true);
         return;
       }
@@ -93,18 +91,17 @@ export function useTranscription() {
         }
       };
       workerRef.current.addEventListener("message", handler);
-      workerRef.current.postMessage({ type: "load" });
       setTimeout(() => {
         workerRef.current?.removeEventListener("message", handler);
-        resolve(false);
-      }, 60000);
+        if (!isModelLoaded) resolve(false);
+      }, 120000);
     });
-  }, []);
+  }, [isModelLoaded]);
 
   return {
     transcribe,
     transcript,
     loadModel,
-    isModelLoaded: isLoadedRef.current,
+    isModelLoaded,
   };
 }

@@ -10,7 +10,8 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "generate-embeddings": "node scripts/generateEmbeddings.js"
   },
   "dependencies": {
     "@babel/types": "^7.29.7",
