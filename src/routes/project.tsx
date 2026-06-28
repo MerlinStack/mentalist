@@ -1,5 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState, useRef } from "react";
+import Box from "@mui/material/Box";
+import Typography from "@mui/material/Typography";
 
 interface VerseData {
   text: string;
@@ -68,54 +70,116 @@ function ProjectOutput() {
 
   if (!verse) {
     return (
-      <div
-        className="min-h-screen flex items-center justify-center"
-        style={{ background: config.bg }}
+      <Box
+        sx={{
+          minHeight: "100vh",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          bgcolor: config.bg,
+        }}
       >
-        <div className="text-center opacity-50">
-          <div className="text-6xl mb-4 font-serif">✝</div>
-          <p className="text-xl" style={{ color: config.text }}>
+        <Box sx={{ textAlign: "center", opacity: 0.5 }}>
+          <Typography
+            sx={{ fontSize: 64, mb: 4, fontFamily: '"Georgia", serif' }}
+            color={config.text as any}
+          >
+            ✝
+          </Typography>
+          <Typography sx={{ fontSize: 24 }} color={config.text as any}>
             Waiting for verse...
-          </p>
-        </div>
-      </div>
+          </Typography>
+        </Box>
+      </Box>
     );
   }
 
   return (
-    <div
-      className="min-h-screen flex items-center justify-center p-4 md:p-8 lg:p-16"
-      style={{ background: config.bg, color: config.text }}
+    <Box
+      sx={{
+        minHeight: "100vh",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        px: { xs: 2, md: 4, lg: 8 },
+        bgcolor: config.bg,
+        color: config.text,
+        position: "relative",
+      }}
     >
-      <div
-        className="max-w-4xl mx-auto text-center transition-all duration-500"
-        style={{ opacity: visible ? 1 : 0, transform: visible ? "scale(1)" : "scale(0.95)" }}
+      <Box
+        sx={{
+          maxWidth: 900,
+          mx: "auto",
+          textAlign: "center",
+          transition: "all 0.5s",
+          opacity: visible ? 1 : 0,
+          transform: visible ? "scale(1)" : "scale(0.95)",
+        }}
       >
-        <p
-          className="leading-relaxed font-serif break-words"
-          style={{ fontSize: `${fontPx}px`, lineHeight: 1.5, overflowWrap: 'break-word', wordBreak: 'break-word' }}
+        <Typography
+          sx={{
+            fontFamily: '"Georgia", serif',
+            fontSize: fontPx,
+            lineHeight: 1.5,
+            overflowWrap: "break-word",
+            wordBreak: "break-word",
+          }}
+          color={config.text as any}
         >
           {verse.text}
-        </p>
+        </Typography>
         {(verse.reference || verse.ref) && (
-          <p className="mt-8 opacity-70" style={{ fontSize: `${Math.round(fontPx * 0.4)}px` }}>
+          <Typography
+            sx={{ mt: 8, opacity: 0.7, fontSize: Math.round(fontPx * 0.4) }}
+            color={config.text as any}
+          >
             &mdash; {verse.reference || verse.ref}
             {verse.translation && ` (${verse.translation})`}
-          </p>
+          </Typography>
         )}
-      </div>
+      </Box>
 
-      <div
-        className="fixed bottom-0 left-0 right-0 h-0.5"
-        style={{ background: `linear-gradient(90deg, transparent, ${config.accent}, transparent)` }}
+      <Box
+        sx={{
+          position: "fixed",
+          bottom: 0,
+          left: 0,
+          right: 0,
+          height: 2,
+          background: `linear-gradient(90deg, transparent, ${config.accent}, transparent)`,
+        }}
       />
 
-      <div className="fixed top-4 right-4 flex items-center gap-1.5 opacity-20 hover:opacity-60 transition-opacity">
-        <span className="h-1.5 w-1.5 rounded-full bg-ok animate-pulse" />
-        <span className="text-xs font-mono" style={{ color: config.text }}>
+      <Box
+        sx={{
+          position: "fixed",
+          top: 16,
+          right: 16,
+          display: "flex",
+          alignItems: "center",
+          gap: 0.75,
+          opacity: 0.2,
+          "&:hover": { opacity: 0.6 },
+          transition: "opacity 0.2s",
+        }}
+      >
+        <Box
+          sx={{
+            width: 6,
+            height: 6,
+            borderRadius: "50%",
+            bgcolor: config.accent,
+            animation: "pulse 2s infinite",
+          }}
+        />
+        <Typography
+          sx={{ fontSize: 12, fontFamily: '"JetBrains Mono Variable", monospace' }}
+          color={config.text as any}
+        >
           D'mentalist Live
-        </span>
-      </div>
-    </div>
+        </Typography>
+      </Box>
+    </Box>
   );
 }

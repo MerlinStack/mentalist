@@ -1,7 +1,7 @@
 import { useRef, useCallback, useState } from "react";
 import { useSoundStore } from "../store/soundStore";
 
-const CHUNK_INTERVAL = 5000;
+const CHUNK_INTERVAL = 2500;
 
 export function useAudioCapture() {
   const [stream, setStream] = useState(null);

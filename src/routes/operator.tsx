@@ -2,8 +2,26 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { useProjectionStore } from "../store/projectionStore";
 import { useOrchestrator } from "../hooks/useOrchestrator";
-import QueuePanel from "../components/ai/QueuePanel";
 import type { Verse } from "../api/bible";
+import { MATCH_RANGE_OPTIONS } from "../utils/distance";
+import type { MatchRange } from "../utils/distance";
+import Box from "@mui/material/Box";
+import Card from "@mui/material/Card";
+import Typography from "@mui/material/Typography";
+import Button from "@mui/material/Button";
+import TextField from "@mui/material/TextField";
+import InputAdornment from "@mui/material/InputAdornment";
+import IconButton from "@mui/material/IconButton";
+import Stack from "@mui/material/Stack";
+import Chip from "@mui/material/Chip";
+import SearchIcon from "@mui/icons-material/Search";
+import MicIcon from "@mui/icons-material/Mic";
+import VolumeOffIcon from "@mui/icons-material/VolumeOff";
+import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
+import ChevronRightIcon from "@mui/icons-material/ChevronRight";
+import CircleIcon from "@mui/icons-material/Circle";
+import ClearAllIcon from "@mui/icons-material/ClearAll";
+import LaunchIcon from "@mui/icons-material/Launch";
 
 export const Route = createFileRoute("/operator")({
   head: () => ({
@@ -20,9 +38,8 @@ const TRANSLATIONS = ["KJV", "NIV", "ESV", "NKJV"] as const;
 
 function OperatorConsole() {
   const channelRef = useRef<BroadcastChannel | null>(null);
-  const queueRef = useRef<HTMLDivElement | null>(null);
-  const prevDetectedRef = useRef<string | null>(null);
   const transcriptRef = useRef<HTMLDivElement | null>(null);
+  const prevDetectedRef = useRef<string | null>(null);
 
   const {
     isListening,
@@ -33,23 +50,25 @@ function OperatorConsole() {
     error,
     whisperLoaded,
     semanticLoaded,
-    sensitivity,
     startListening,
     stopListening,
     pushToProjection,
+    searchUtterance,
+    matchRange,
+    setMatchRange,
   } = useOrchestrator();
 
-  const queueList = useProjectionStore((s) => s.queue);
-  const queueCount = queueList.length;
+  const queue = useProjectionStore((s) => s.queue);
   const addToQueue = useProjectionStore((s) => s.addToQueue);
+  const removeFromQueue = useProjectionStore((s) => s.removeFromQueue);
   const projectVerse = useProjectionStore((s) => s.projectVerse);
   const currentVerse = useProjectionStore((s) => s.currentVerse);
 
-  const [mode, setMode] = useState<"Scripture" | "Music" | "Media">("Scripture");
+  const [mode, setMode] = useState<(typeof MODES)[number]>("Scripture");
   const [translation, setTranslation] = useState(0);
   const [elapsed, setElapsed] = useState(0);
-  const [showQueue, setShowQueue] = useState(false);
-  const [detectionHistory, setDetectionHistory] = useState<any[]>([]);
+  const [queueDrawerOpen, setQueueDrawerOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
     channelRef.current = new BroadcastChannel("scriptureflow-projection");
@@ -62,285 +81,530 @@ function OperatorConsole() {
   }, []);
 
   useEffect(() => {
-    const handleClick = (e: MouseEvent) => {
-      if (queueRef.current && !queueRef.current.contains(e.target as Node)) setShowQueue(false);
-    };
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, []);
+    if (transcriptRef.current) {
+      transcriptRef.current.scrollTop = transcriptRef.current.scrollHeight;
+    }
+  }, [transcript]);
 
   useEffect(() => {
     if (detectedVerse) {
       const ref = (detectedVerse as any).ref || (detectedVerse as any).reference || "";
       if (ref && ref !== prevDetectedRef.current) {
         prevDetectedRef.current = ref;
-        const now = new Date();
-        setDetectionHistory((prev) => [
-          {
-            ref,
-            stage: "regex",
-            confidence: 92,
-            time: now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false }),
-            spokenAs: transcript ? transcript.slice(0, 80) : ref,
-          },
-          ...prev.slice(0, 49),
-        ]);
       }
     }
-  }, [detectedVerse, transcript]);
+  }, [detectedVerse]);
 
-  useEffect(() => {
-    if (transcriptRef.current) {
-      transcriptRef.current.scrollTop = transcriptRef.current.scrollHeight;
+  const handlePushLive = () => {
+    if (detectedVerse) {
+      projectVerse(detectedVerse as any);
+      pushToProjection(detectedVerse as any);
+      channelRef.current?.postMessage({ type: "PROJECT_VERSE", verse: detectedVerse });
     }
-  }, [transcript]);
-
-  const pushToLive = (verse: Verse) => {
-    if (!verse) return;
-    projectVerse(verse);
-    pushToProjection(verse);
-    channelRef.current?.postMessage({
-      type: "PROJECT_VERSE",
-      verse: {
-        ...verse,
-        timestamp: Date.now(),
-        translation: TRANSLATIONS[translation],
-      },
-    });
   };
 
-  const mm = String(Math.floor(elapsed / 60)).padStart(2, "0");
-  const ss = String(elapsed % 60).padStart(2, "0");
-  const sessionTime = `${mm}:${ss}`;
+  const handleToggleMic = () => {
+    if (isListening) stopListening();
+    else startListening();
+  };
+
+  const formatTime = () => {
+    const mm = String(Math.floor(elapsed / 60)).padStart(2, "0");
+    const ss = String(elapsed % 60).padStart(2, "0");
+    return `${mm}:${ss}`;
+  };
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (searchQuery.trim()) {
+      searchUtterance(searchQuery.trim());
+      setSearchQuery("");
+    }
+  };
+
+  const displayVerse = detectedVerse;
+  const confidenceScore = 94;
 
   return (
-    <div className="min-h-screen bg-[#0A0F1E] text-slate-100 flex flex-col font-sans antialiased selection:bg-indigo-500/30">
+    <Box sx={{ minHeight: "100vh", bgcolor: "#05070f", color: "#fff", overflow: "hidden", position: "relative" }}>
+      
+      {/* Floating Orbs */}
+      <Box sx={{ position: "fixed", inset: 0, overflow: "hidden", pointerEvents: "none", zIndex: 0 }}>
+        <Box sx={{ position: "absolute", top: "5%", left: "10%", width: 500, height: 500, borderRadius: "50%", opacity: 0.06, filter: "blur(72px)", bgcolor: "#C9973A", animation: "float 22s ease-in-out infinite" }} />
+        <Box sx={{ position: "absolute", bottom: "10%", right: "5%", width: 400, height: 400, borderRadius: "50%", opacity: 0.04, filter: "blur(72px)", bgcolor: "#3B82F6", animation: "float 28s ease-in-out infinite reverse" }} />
+        <Box sx={{ position: "absolute", top: "50%", right: "40%", width: 300, height: 300, borderRadius: "50%", opacity: 0.03, filter: "blur(72px)", bgcolor: "#10B981", animation: "float 18s ease-in-out infinite 5s" }} />
+      </Box>
 
-      <header className="h-16 border-b border-[#2D3A5C]/40 bg-[#1A2035]/80 backdrop-blur-md flex items-center justify-between px-3 md:px-6 shadow-lg z-20">
-        <div className="flex items-center gap-2 md:gap-3">
-          <div className="h-7 w-7 md:h-8 md:w-8 rounded-lg bg-gradient-to-tr from-blue-600 to-indigo-500 shadow-md shadow-blue-500/30 flex items-center justify-center font-bold text-xs md:text-sm text-white shrink-0">
+      {/* HEADER */}
+      <Box sx={{ position: "relative", zIndex: 10, height: 64, borderBottom: "1px solid rgba(255,255,255,0.04)", bgcolor: "rgba(10,15,30,0.7)", backdropFilter: "blur(24px)", display: "flex", alignItems: "center", justifyContent: "space-between", px: { xs: 2, md: 4 } }}>
+        <Stack direction="row" spacing={2} alignItems="center">
+          <Box sx={{ width: 36, height: 36, borderRadius: "12px", background: "linear-gradient(135deg, #C9973A, #FFD580)", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: 14, color: "#080D1C", boxShadow: "0 4px 16px rgba(201,151,58,0.2)" }}>
             D
-          </div>
-          <div className="hidden sm:block">
-            <h1 className="font-semibold text-sm tracking-wide text-white">D'mentalist</h1>
-            <p className="text-[10px] text-slate-400 font-mono tracking-tight">AI SCRIPTURE ENGINE v1.2</p>
-          </div>
-        </div>
+          </Box>
+          <Box sx={{ display: { xs: "none", sm: "block" } }}>
+            <Typography sx={{ fontWeight: 700, fontSize: 13, letterSpacing: "0.02em" }}>D'mentalist</Typography>
+            <Typography sx={{ fontSize: 10, color: "rgba(255,255,255,0.3)", fontFamily: '"JetBrains Mono", monospace', lineHeight: 1.2 }}>AI SCRIPTURE ENGINE v1.2</Typography>
+          </Box>
 
-        <div className="flex items-center gap-1.5 md:gap-3">
-          <div className="hidden lg:flex items-center gap-1 text-xs font-mono text-slate-500">
-            <span className={`h-1.5 w-1.5 rounded-full ${whisperLoaded ? "bg-emerald-500" : "bg-slate-600"}`} />
-            <span>W</span>
-            <span className={`h-1.5 w-1.5 rounded-full ${semanticLoaded ? "bg-emerald-500" : "bg-slate-600"}`} />
-            <span>M</span>
-          </div>
+          <Stack direction="row" spacing={0.5} sx={{ display: { xs: "none", md: "flex" }, ml: 4, borderLeft: "1px solid rgba(255,255,255,0.04)", pl: 3 }}>
+            {MODES.map((tab) => (
+              <Box
+                key={tab}
+                component="button"
+                onClick={() => setMode(tab)}
+                sx={{
+                  px: 2.5, py: 1, borderRadius: "8px", fontSize: 11, fontWeight: 600,
+                  textTransform: "uppercase", letterSpacing: "0.05em", border: "none",
+                  cursor: "pointer", transition: "all 0.2s", fontFamily: '"Inter", sans-serif',
+                  color: mode === tab ? "#E2B04E" : "rgba(255,255,255,0.4)",
+                  bgcolor: mode === tab ? "rgba(226,176,78,0.06)" : "transparent",
+                  "&:hover": { color: mode === tab ? "#E2B04E" : "rgba(255,255,255,0.7)" },
+                }}
+              >
+                {tab}
+              </Box>
+            ))}
+          </Stack>
+        </Stack>
 
-          <button
-            onClick={isListening ? stopListening : startListening}
-            className={`flex items-center gap-1.5 md:gap-2 px-2 md:px-3 py-1.5 rounded-lg text-[10px] md:text-xs font-medium transition border ${
-              isListening
-                ? 'bg-rose-500/10 text-rose-400 border-rose-500/30 shadow-[0_0_12px_rgba(244,63,94,0.1)]'
-                : 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700'
-            }`}
+        <Stack direction="row" spacing={1.5} alignItems="center">
+          {/* AI Status */}
+          <Stack direction="row" spacing={1.5} sx={{ display: { xs: "none", lg: "flex" }, fontFamily: '"JetBrains Mono", monospace', fontSize: 10, color: "rgba(255,255,255,0.4)", px: 2, py: 0.75, borderRadius: "8px", bgcolor: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.04)" }}>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
+              <CircleIcon sx={{ fontSize: 6, color: whisperLoaded ? "#10B981" : "rgba(255,255,255,0.15)", animation: whisperLoaded ? "pulse-green 2s ease-in-out infinite" : "none" }} />
+              <Box component="span" sx={{ color: whisperLoaded ? "#34D399" : "inherit" }}>WHISPER</Box>
+            </Box>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
+              <CircleIcon sx={{ fontSize: 6, color: semanticLoaded ? "#818CF8" : "rgba(255,255,255,0.15)", animation: semanticLoaded ? "pulse-green 2s ease-in-out infinite" : "none" }} />
+              <Box component="span" sx={{ color: semanticLoaded ? "#818CF8" : "inherit" }}>MINILM</Box>
+            </Box>
+          </Stack>
+
+          {/* Mic Toggle */}
+          <Box
+            component="button"
+            onClick={handleToggleMic}
+            sx={{
+              display: "flex", alignItems: "center", gap: 1, px: 2, py: 1,
+              borderRadius: "8px", fontSize: 11, fontWeight: 600, border: "1px solid",
+              cursor: "pointer", transition: "all 0.2s",
+              bgcolor: isListening ? "rgba(239,68,68,0.1)" : "rgba(255,255,255,0.02)",
+              color: isListening ? "#EF4444" : "rgba(255,255,255,0.5)",
+              borderColor: isListening ? "rgba(239,68,68,0.25)" : "rgba(255,255,255,0.04)",
+              "&:hover": { bgcolor: isListening ? "rgba(239,68,68,0.15)" : "rgba(255,255,255,0.04)" },
+            }}
           >
-            <span className={`h-1.5 w-1.5 rounded-full ${isListening ? 'bg-rose-500 animate-ping' : 'bg-slate-500'}`} />
-            <span className="hidden sm:inline">{isListening ? 'Mute' : 'Mic'}</span>
-          </button>
+            {isListening ? (
+              <VolumeOffIcon sx={{ fontSize: 14 }} />
+            ) : (
+              <MicIcon sx={{ fontSize: 14 }} />
+            )}
+            <Box sx={{ display: { xs: "none", sm: "block" } }}>{isListening ? "Mute" : "Mic"}</Box>
+          </Box>
 
-          <div className="h-4 w-[1px] bg-slate-700 hidden md:block" />
-
-          <div ref={queueRef} className="relative">
-            <button
-              onClick={() => setShowQueue((v) => !v)}
-              className="px-2 md:px-3 py-1.5 text-[10px] md:text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-lg transition"
-            >
-              Q ({queueCount})
-            </button>
-            {showQueue && <QueuePanel onClose={() => setShowQueue(false)} />}
-          </div>
-
-          <button
-            disabled={!detectedVerse}
-            onClick={() => detectedVerse && pushToLive(detectedVerse)}
-            className="px-3 md:px-4 py-1.5 text-[10px] md:text-xs font-semibold bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg shadow-md shadow-blue-500/20 hover:brightness-110 disabled:opacity-30 disabled:pointer-events-none transition"
+          {/* Queue */}
+          <Box
+            component="button"
+            onClick={() => setQueueDrawerOpen(true)}
+            sx={{
+              px: 2, py: 1, borderRadius: "8px", fontSize: 11, fontWeight: 600,
+              border: "1px solid rgba(255,255,255,0.04)", cursor: "pointer",
+              transition: "all 0.2s", fontFamily: '"Inter", sans-serif',
+              bgcolor: "rgba(255,255,255,0.02)", color: "rgba(255,255,255,0.5)",
+              display: { xs: "none", md: "flex" }, alignItems: "center", gap: 1,
+              "&:hover": { bgcolor: "rgba(255,255,255,0.04)" },
+            }}
           >
-            <span className="hidden sm:inline">Push Live</span>
-            <span className="sm:hidden">→</span>
-          </button>
-        </div>
-      </header>
+            <ClearAllIcon sx={{ fontSize: 14 }} /> Queue ({queue.length})
+          </Box>
 
-      <main className="flex-1 grid grid-cols-1 md:grid-cols-12 gap-4 md:gap-6 p-3 md:p-6 overflow-y-auto md:overflow-hidden">
+        </Stack>
+      </Box>
 
-        <section className="col-span-12 md:col-span-4 lg:col-span-3 flex flex-col gap-4">
+      {/* MAIN 3-COLUMN LAYOUT */}
+      <Box sx={{ position: "relative", zIndex: 10, display: "grid", gridTemplateColumns: { xs: "1fr", md: "repeat(12, 1fr)" }, gap: { xs: 2, md: 3 }, p: { xs: 2, md: 3 }, height: "calc(100vh - 64px)", overflow: "hidden" }}>
+        
+        {/* COLUMN 1: Telemetry & Controls */}
+        <Box sx={{ gridColumn: { xs: "span 12", md: "span 3" }, display: "flex", flexDirection: "column", gap: 2, overflowY: "auto" }}>
+          
+          {/* Live Transcript */}
+          <Card sx={{ p: 2, display: "flex", flexDirection: "column", minHeight: 200, flex: 1 }}>
+            <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ borderBottom: "1px solid rgba(255,255,255,0.04)", pb: 1.5, mb: 1.5 }}>
+              <Stack direction="row" spacing={1} alignItems="center">
+                <MicIcon sx={{ fontSize: 14, color: isListening ? "#10B981" : "rgba(255,255,255,0.2)", animation: isListening ? "pulse-green 2s ease-in-out infinite" : "none" }} />
+                <Typography sx={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "rgba(255,255,255,0.4)" }}>Live Transcript</Typography>
+              </Stack>
+              <Stack direction="row" spacing={1} alignItems="center">
+                {isProcessing && <CircleIcon sx={{ fontSize: 8, color: "#E2B04E", animation: "pulse-gold 1s ease-in-out infinite" }} />}
+                <Chip
+                  label={isListening ? "LISTENING" : "OFFLINE"}
+                  size="small"
+                  color={isListening ? "secondary" : "default"}
+                  sx={{ height: 20, fontSize: 9 }}
+                />
+                <Typography sx={{ fontSize: 10, fontFamily: '"JetBrains Mono", monospace', color: "rgba(255,255,255,0.25)" }}>{formatTime()}</Typography>
+              </Stack>
+            </Stack>
 
-          <div className="p-4 rounded-xl bg-[#1A2035]/40 backdrop-blur-md border border-[#2D3A5C]/40 shadow-inner">
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-[10px] md:text-[11px] font-bold uppercase tracking-widest text-slate-400">Audio Waveform</span>
-              <span className="text-[10px] md:text-[11px] font-mono text-slate-500">{sessionTime}</span>
-            </div>
-            <div className="flex items-end gap-[3px] h-10 px-2 bg-black/30 rounded-lg py-1.5">
-              {Array.from({ length: 28 }, (_, i) => {
-                const isActive = isListening && audioLevel > 2;
-                const liveHeight = isActive
-                  ? `${Math.max(15, Math.min(100, audioLevel * (0.3 + 0.7 * ((Math.sin(i * 0.5) + 1) / 2))))}%`
-                  : `${6 + (i % 4) * 6}%`;
+            {/* Waveform */}
+            <Box sx={{ height: 40, display: "flex", alignItems: "flex-end", gap: "2px", mb: 1.5, px: 1, py: 0.5, bgcolor: "rgba(0,0,0,0.25)", borderRadius: 1 }}>
+              {Array.from({ length: 36 }, (_, i) => {
+                const active = isListening && audioLevel > 3;
+                const wave = Math.sin((i / 36) * Math.PI * 2 + Date.now() / 200) * 0.5 + 0.5;
+                const h = active ? Math.max(10, Math.min(100, audioLevel * 0.8 * (0.5 + wave * 0.5))) : 8 + (i % 5) * 4;
+                const intensity = h / 100;
+                const color = active
+                  ? intensity > 0.6 ? "#10B981" : intensity > 0.3 ? "#E2B04E" : "#3B82F6"
+                  : "rgba(255,255,255,0.06)";
                 return (
-                  <div
+                  <Box
                     key={i}
-                    className="w-full rounded-sm transition-all duration-75"
-                    style={{
-                      height: liveHeight,
-                      background: isActive
-                        ? audioLevel > 40
-                          ? "#f43f5e"
-                          : audioLevel > 15
-                            ? "#fbbf24"
-                            : "linear-gradient(to top, #4f6bff, #818cf8)"
-                        : "#1A2140",
-                      boxShadow: isActive ? "0 0 6px rgba(79,107,255,0.3)" : "none",
+                    sx={{
+                      flex: 1, borderRadius: "2px", transition: "height 0.08s", height: `${h}%`,
+                      bgcolor: color, boxShadow: active && h > 25 ? `0 0 8px ${color}` : "none",
                     }}
                   />
                 );
               })}
-            </div>
-            {isProcessing && (
-              <div className="mt-2 h-1 rounded-full bg-slate-800 overflow-hidden">
-                <div className="h-full rounded-full bg-amber-400 animate-pulse" style={{ width: "60%" }} />
-              </div>
-            )}
-          </div>
+            </Box>
 
-          <div className="flex flex-col min-h-[150px] md:h-[200px] p-4 rounded-xl bg-[#1A2035]/40 backdrop-blur-md border border-[#2D3A5C]/40 shadow-inner">
-            <div className="flex items-center justify-between mb-3 border-b border-white/5 pb-2">
-              <h3 className="text-[10px] md:text-[11px] font-bold uppercase tracking-widest text-slate-400">Live Audio Capture</h3>
-              <span className={`text-[10px] px-1.5 py-0.5 rounded font-mono ${isListening ? 'bg-emerald-500/10 text-emerald-400' : 'bg-slate-800 text-slate-500'}`}>
-                {isListening ? 'LISTENING' : 'OFFLINE'}
-              </span>
-            </div>
-            <div ref={transcriptRef} className="flex-1 overflow-y-auto font-mono text-xs leading-relaxed space-y-2 text-slate-300 pr-1 select-text">
+            {/* Transcript Text */}
+            <Box ref={transcriptRef} sx={{ flex: 1, overflowY: "auto", fontFamily: '"JetBrains Mono", monospace', fontSize: 11, lineHeight: 1.6, color: "rgba(255,255,255,0.6)" }}>
               {transcript ? (
-                <span className="text-slate-400 opacity-70">{transcript}</span>
+                <Typography sx={{ fontFamily: '"JetBrains Mono", monospace', fontSize: 11, color: "rgba(255,255,255,0.5)" }}>{transcript}</Typography>
               ) : (
-                <p className="text-slate-500 italic text-[11px]">
-                  {isListening ? "Awaiting detected vocal inputs..." : "Vocal capture hardware unlinked."}
-                </p>
+                <Typography sx={{ color: "rgba(255,255,255,0.2)", fontStyle: "italic", fontSize: 10 }}>
+                  {isListening ? "Awaiting vocal input..." : "Mic offline. Toggle mic above."}
+                </Typography>
               )}
-            </div>
-          </div>
+            </Box>
+
+            {detectedVerse && (
+              <Box sx={{ mt: 1, pt: 1.5, borderTop: "1px solid rgba(255,255,255,0.04)" }}>
+                <Stack direction="row" spacing={1.5} alignItems="center" sx={{ fontSize: 10 }}>
+                  <CircleIcon sx={{ fontSize: 6, color: "#10B981" }} />
+                  <Box component="span" sx={{ color: "#34D399", fontWeight: 600 }}>Detected:</Box>
+                  <Box component="span" sx={{ color: "#fff", fontWeight: 600, fontFamily: '"JetBrains Mono", monospace' }}>
+                    {(detectedVerse as any).reference || (detectedVerse as any).ref}
+                  </Box>
+                  <Box component="span" sx={{ color: "rgba(255,255,255,0.25)" }}>· {confidenceScore}%</Box>
+                  <Chip label="regex" size="small" sx={{ height: 16, fontSize: 8 }} />
+                </Stack>
+              </Box>
+            )}
+          </Card>
+
+          {/* Engine Infrastructure */}
+          <Card sx={{ p: 2 }}>
+            <Typography sx={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "rgba(255,255,255,0.4)", borderBottom: "1px solid rgba(255,255,255,0.04)", pb: 1.5, mb: 1.5 }}>
+              Engine Infrastructure
+            </Typography>
+
+            <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1.5 }}>
+              <Typography sx={{ fontSize: 11, color: "rgba(255,255,255,0.35)", fontFamily: '"JetBrains Mono", monospace' }}>Match Range</Typography>
+              <Stack direction="row" spacing={0.5}>
+                {MATCH_RANGE_OPTIONS.map((opt) => (
+                  <Box
+                    key={opt.value}
+                    component="button"
+                    onClick={() => setMatchRange(opt.value as MatchRange)}
+                    sx={{
+                      px: 1.5, py: 0.5, borderRadius: "4px", fontSize: 9, fontWeight: 700,
+                      fontFamily: '"JetBrains Mono", monospace', textTransform: "capitalize",
+                      border: "none", cursor: "pointer", transition: "all 0.15s",
+                      bgcolor: matchRange === opt.value ? "#E2B04E" : "rgba(255,255,255,0.03)",
+                      color: matchRange === opt.value ? "#080D1C" : "rgba(255,255,255,0.35)",
+                      "&:hover": { color: matchRange === opt.value ? "#080D1C" : "rgba(255,255,255,0.6)" },
+                    }}
+                  >
+                    {opt.value}
+                  </Box>
+                ))}
+              </Stack>
+            </Stack>
+
+            <Box sx={{ "& > div": { display: "flex", justifyContent: "space-between", alignItems: "center", py: 0.5, fontSize: 11 } }}>
+              <Box><Box component="span" sx={{ color: "rgba(255,255,255,0.3)" }}>Whisper ASR</Box><Box component="span" sx={{ color: whisperLoaded ? "#34D399" : "rgba(255,255,255,0.3)" }}><CircleIcon sx={{ fontSize: 6, ml: 1, mr: 0.5, color: whisperLoaded ? "#10B981" : "inherit" }} />{whisperLoaded ? "Connected" : "Loading"}</Box></Box>
+              <Box><Box component="span" sx={{ color: "rgba(255,255,255,0.3)" }}>Embedder</Box><Box component="span" sx={{ color: semanticLoaded ? "#818CF8" : "rgba(255,255,255,0.3)" }}><CircleIcon sx={{ fontSize: 6, ml: 1, mr: 0.5, color: semanticLoaded ? "#818CF8" : "inherit" }} />{semanticLoaded ? "Vector Ready" : "Loading"}</Box></Box>
+              <Box><Box component="span" sx={{ color: "rgba(255,255,255,0.3)" }}>Core Engine</Box><Box component="span" sx={{ color: "rgba(255,255,255,0.6)" }}>React 19 + TS 5.8</Box></Box>
+              <Box sx={{ borderTop: "1px solid rgba(255,255,255,0.04)", mt: 1, pt: 1.5, fontSize: 10 }}>
+                <Box component="span" sx={{ color: "rgba(255,255,255,0.2)" }}>Session Runtime</Box>
+                <Box component="span" sx={{ color: "rgba(255,255,255,0.4)", fontFamily: '"JetBrains Mono", monospace' }}>{formatTime()}</Box>
+              </Box>
+            </Box>
+          </Card>
+
+          {/* Manual Search */}
+          <Card sx={{ p: 2 }}>
+            <Typography sx={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "rgba(255,255,255,0.4)", borderBottom: "1px solid rgba(255,255,255,0.04)", pb: 1.5, mb: 1.5 }}>
+              Manual Search
+            </Typography>
+            <Box component="form" onSubmit={handleSearch} sx={{ display: "flex", gap: 1 }}>
+              <TextField
+                fullWidth
+                size="small"
+                placeholder="Quote, topic, or reference..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                slotProps={{
+                  input: {
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <SearchIcon sx={{ fontSize: 14, color: "rgba(255,255,255,0.2)" }} />
+                      </InputAdornment>
+                    ),
+                  },
+                }}
+              />
+              <Button type="submit" variant="contained" color="primary" sx={{ minWidth: "unset", px: 2.5, fontSize: 11, fontWeight: 600 }}>
+                Find
+              </Button>
+            </Box>
+          </Card>
 
           {error && (
-            <div className="p-2 rounded-lg bg-rose-500/10 border border-rose-500/20 text-[11px] text-rose-400 font-mono">
-              {error}
-            </div>
+            <Box sx={{ p: 1.5, borderRadius: 1, bgcolor: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.2)" }}>
+              <Typography sx={{ fontSize: 10, color: "#EF4444", fontFamily: '"JetBrains Mono", monospace' }}>{error}</Typography>
+            </Box>
           )}
+        </Box>
 
-          <div className="p-4 rounded-xl bg-[#1A2035]/20 border border-[#2D3A5C]/20 flex-1 text-[11px] font-mono space-y-2.5 text-slate-400 overflow-y-auto">
-            <h4 className="font-semibold uppercase text-[10px] tracking-wider text-slate-500 border-b border-white/5 pb-1 mb-1">Detection Log</h4>
-            {detectionHistory.length > 0 ? (
-              detectionHistory.map((item, i) => (
-                <div key={i} className="p-2 rounded bg-black/30 border-l-2 border-emerald-500/50 space-y-0.5">
-                  <div className="text-xs font-semibold text-slate-200">{item.ref}</div>
-                  <div className="flex items-center gap-2 text-[10px] text-slate-500">
-                    <span className="px-1 rounded bg-emerald-500/10 text-emerald-400 text-[10px] font-medium">Regex</span>
-                    {item.confidence}% · {item.time}
-                  </div>
-                  <div className="text-[10px] text-slate-600 italic truncate">"{item.spokenAs}"</div>
-                </div>
-              ))
+        {/* COLUMN 2: Preview */}
+        <Card sx={{ gridColumn: { xs: "span 12", md: "span 5" }, p: { xs: 2, md: 3 }, display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
+          
+          {/* Preview Header */}
+          <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ borderBottom: "1px solid rgba(255,255,255,0.04)", pb: 1.5 }}>
+            <Stack direction="row" spacing={2} alignItems="center">
+              <Box sx={{ position: "relative", width: 44, height: 44, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <svg width="44" height="44" viewBox="0 0 44 44" style={{ position: "absolute", transform: "rotate(-90deg)" }}>
+                  <circle cx="22" cy="22" r="18" fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth="3" />
+                  <circle cx="22" cy="22" r="18" fill="none" stroke="#10B981" strokeWidth="3" strokeDasharray={113} strokeDashoffset={113 - (113 * confidenceScore) / 100} strokeLinecap="round" />
+                </svg>
+                <Typography sx={{ fontSize: 11, fontWeight: 700, fontFamily: '"JetBrains Mono", monospace', color: "#10B981" }}>{confidenceScore}%</Typography>
+              </Box>
+              <Box>
+                <Typography sx={{ fontSize: 9, fontFamily: '"JetBrains Mono", monospace', textTransform: "uppercase", letterSpacing: "0.1em", color: "rgba(255,255,255,0.3)" }}>Confidence</Typography>
+                <Chip label="tier: regex" size="small" sx={{ height: 16, fontSize: 8, mt: 0.5 }} />
+              </Box>
+            </Stack>
+
+            <Box sx={{ bgcolor: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.04)", borderRadius: 2, px: 2, py: 1, textAlign: "right" }}>
+              <Typography sx={{ fontSize: 8, fontFamily: '"JetBrains Mono", monospace', textTransform: "uppercase", letterSpacing: "0.1em", color: "rgba(255,255,255,0.3)" }}>Next Expected</Typography>
+              <Typography sx={{ fontSize: 11, fontWeight: 700, fontFamily: '"JetBrains Mono", monospace', color: "#E2B04E", mt: 0.25 }}>
+                {(displayVerse as any)?.reference || "—"}
+              </Typography>
+            </Box>
+          </Stack>
+
+          {/* Verse Display */}
+          <Box sx={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", textAlign: "center", px: 4, py: 2 }}>
+            {displayVerse ? (
+              <>
+                <Typography sx={{ fontSize: 11, fontWeight: 700, fontFamily: '"JetBrains Mono", monospace', color: "#E2B04E", letterSpacing: "0.2em", textTransform: "uppercase", mb: 2 }}>
+                  — {(displayVerse as any).reference || (displayVerse as any).ref} · {TRANSLATIONS[translation]} —
+                </Typography>
+                <Typography sx={{ fontFamily: '"Georgia", serif', fontStyle: "italic", fontSize: { xs: 18, md: 22 }, lineHeight: 1.8, color: "rgba(255,255,255,0.95)", fontWeight: 400 }}>
+                  <Box component="span" sx={{ fontSize: 11, fontFamily: '"Inter", sans-serif', fontWeight: 800, mr: 1, color: "#E2B04E", verticalAlign: "super" }}>
+                    {(displayVerse as any).verse}
+                  </Box>
+                  "{(displayVerse as any).text}"
+                </Typography>
+              </>
             ) : (
-              <p className="text-slate-600 text-center py-4 text-[11px]">No detections yet</p>
+              <>
+                <Typography sx={{ fontSize: 12, color: "rgba(255,255,255,0.2)", fontFamily: '"JetBrains Mono", monospace', fontStyle: "italic" }}>
+                  Awaiting scripture input...
+                </Typography>
+                <Typography sx={{ fontSize: 10, color: "rgba(255,255,255,0.15)", mt: 1 }}>
+                  Speak a verse or type in the search bar
+                </Typography>
+              </>
             )}
-          </div>
-        </section>
+          </Box>
 
-        <section className="col-span-12 md:col-span-8 lg:col-span-9 grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
-
-          <div className="relative rounded-2xl border border-[#2D3A5C] bg-gradient-to-b from-[#1A2035]/30 to-transparent p-4 md:p-8 flex flex-col items-center justify-center min-h-[300px] md:min-h-[450px] shadow-2xl transition-all duration-300 hover:border-blue-500/30">
-            <span className="absolute top-3 left-3 md:top-4 md:left-4 text-[10px] font-bold tracking-widest uppercase text-blue-400 px-2 py-1 md:px-2.5 md:py-1 bg-blue-500/10 rounded-md border border-blue-500/20 shadow-sm font-mono">
-              Preview
-            </span>
-
-            {detectedVerse ? (
-              <div className="text-center space-y-4 md:space-y-6 max-w-md animate-fadeIn px-2">
-                <span className="text-[10px] md:text-xs font-bold tracking-widest uppercase text-[#FFD580] font-mono px-2 md:px-3 py-1 bg-[#FFD580]/10 rounded-full border border-[#FFD580]/20">
-                  {(detectedVerse as any).reference || (detectedVerse as any).ref} — {TRANSLATIONS[translation]}
-                </span>
-                <p className="text-lg md:text-2xl font-serif leading-relaxed text-white font-medium drop-shadow-md">
-                  "{(detectedVerse as any).text}"
-                </p>
-              </div>
-            ) : (
-              <div className="text-center space-y-2 max-w-xs px-2">
-                <p className="text-xs text-slate-500 font-mono italic">Awaiting audio or search input string streams...</p>
-                <p className="text-[10px] text-slate-600 font-sans">Scripture spoken or typed will display here for operator confirmation before live push.</p>
-              </div>
-            )}
-          </div>
-
-          <div className="relative rounded-2xl border-2 border-red-500/30 bg-black/40 p-4 md:p-8 flex flex-col items-center justify-center min-h-[300px] md:min-h-[450px] shadow-2xl transition-all duration-300">
-            <span className="absolute top-3 left-3 md:top-4 md:left-4 text-[10px] font-bold tracking-widest uppercase text-rose-500 px-2 py-1 md:px-2.5 md:py-1 bg-rose-500/10 rounded-md border border-rose-500/20 flex items-center gap-2 shadow-sm font-mono">
-              <span className={`h-1.5 w-1.5 rounded-full bg-rose-500 ${currentVerse ? 'animate-ping' : ''}`} />
-              <span className="hidden sm:inline">Live</span>
-            </span>
-
-            {currentVerse && (
-              <button
-                onClick={() => {
-                  useProjectionStore.getState().clearProjection();
-                  channelRef.current?.postMessage({ type: "CLEAR" });
+          {/* Preview Controls */}
+          <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ borderTop: "1px solid rgba(255,255,255,0.04)", pt: 2 }}>
+            <Stack direction="row" spacing={1}>
+              <Box
+                component="button"
+                sx={{
+                  display: "flex", alignItems: "center", gap: 0.5, px: 2, py: 0.75, borderRadius: "8px",
+                  fontSize: 10, fontWeight: 600, fontFamily: '"JetBrains Mono", monospace', textTransform: "uppercase",
+                  border: "1px solid rgba(255,255,255,0.06)", cursor: "pointer", transition: "all 0.2s",
+                  bgcolor: "rgba(255,255,255,0.02)", color: "rgba(255,255,255,0.4)",
+                  "&:hover": { bgcolor: "rgba(255,255,255,0.04)", color: "rgba(255,255,255,0.7)" },
                 }}
-                className="absolute top-3 right-3 md:top-4 md:right-4 text-[10px] text-slate-400 hover:text-white px-2 py-1 rounded bg-slate-800 border border-slate-700 transition"
               >
-                Clear
-              </button>
-            )}
+                <ChevronLeftIcon sx={{ fontSize: 14 }} /> Prev
+              </Box>
+              <Box
+                component="button"
+                sx={{
+                  display: "flex", alignItems: "center", gap: 0.5, px: 2, py: 0.75, borderRadius: "8px",
+                  fontSize: 10, fontWeight: 600, fontFamily: '"JetBrains Mono", monospace', textTransform: "uppercase",
+                  border: "1px solid rgba(255,255,255,0.06)", cursor: "pointer", transition: "all 0.2s",
+                  bgcolor: "rgba(255,255,255,0.02)", color: "rgba(255,255,255,0.4)",
+                  "&:hover": { bgcolor: "rgba(255,255,255,0.04)", color: "rgba(255,255,255,0.7)" },
+                }}
+              >
+                Next <ChevronRightIcon sx={{ fontSize: 14 }} />
+              </Box>
+            </Stack>
 
-            {currentVerse ? (
-              <div className="text-center space-y-3 md:space-y-4 max-w-md animate-scaleUp px-2">
-                <p className="text-lg md:text-2xl font-serif leading-relaxed text-white font-semibold">
-                  {currentVerse.text}
-                </p>
-                <span className="text-[10px] md:text-xs font-mono text-slate-400 tracking-wider block uppercase font-bold text-blue-400">
-                  {currentVerse.reference}
-                </span>
-              </div>
-            ) : (
-              <div className="text-center space-y-2 max-w-xs px-2">
-                <div className="h-2 w-2 rounded-full bg-slate-700 mx-auto mb-2" />
-                <p className="text-xs text-slate-600 font-mono">Stage projection output clear.</p>
-                <p className="text-[10px] text-slate-500 font-sans">Use 'Push Live →' in the header to deploy.</p>
-              </div>
-            )}
-          </div>
-
-        </section>
-      </main>
-
-      <footer className="h-12 md:h-10 border-t border-[#2D3A5C]/30 bg-[#1A2035]/60 backdrop-blur-sm flex items-center justify-between px-3 md:px-6 shrink-0">
-        <div className="flex items-center gap-1 flex-wrap">
-          {MODES.map((m) => (
-            <button
-              key={m}
-              onClick={() => setMode(m)}
-              className={`px-2 md:px-3 py-1 rounded text-[10px] md:text-[11px] font-medium transition ${
-                mode === m ? "text-blue-400 bg-blue-500/10" : "text-slate-500 hover:text-slate-300"
-              }`}
+            <Button
+              variant="contained"
+              color="primary"
+              disabled={!displayVerse}
+              onClick={handlePushLive}
+              sx={{ px: 4, py: 1, fontSize: 11, fontWeight: 700, borderRadius: "8px" }}
             >
-              {m}
-            </button>
-          ))}
-        </div>
-        <div className="flex items-center gap-2 md:gap-3">
-          <span className="text-[10px] text-slate-600 hidden sm:inline">Translation</span>
-          <button
-            onClick={() => setTranslation((i) => (i + 1) % TRANSLATIONS.length)}
-            className="px-2 py-0.5 rounded text-[10px] md:text-[11px] font-mono text-slate-400 bg-slate-800 border border-slate-700"
-          >
-            {TRANSLATIONS[translation]}
-          </button>
-        </div>
-      </footer>
-    </div>
+              Transmit Live
+            </Button>
+          </Stack>
+        </Card>
+
+        {/* COLUMN 3: Live Feed & Queue */}
+        <Box sx={{ gridColumn: { xs: "span 12", md: "span 4" }, display: "flex", flexDirection: "column", gap: 2 }}>
+          
+          {/* Live Feed */}
+          <Card sx={{ flex: 1, p: 2, display: "flex", flexDirection: "column", justifyContent: "space-between", bgcolor: "rgba(239,68,68,0.015)", borderColor: "rgba(239,68,68,0.15)" }}>
+            <Stack direction="row" justifyContent="space-between" alignItems="center">
+              <Stack direction="row" spacing={1} alignItems="center">
+                <CircleIcon sx={{ fontSize: 8, color: currentVerse ? "#EF4444" : "rgba(255,255,255,0.15)", animation: currentVerse ? "pulse-red 1.5s ease-in-out infinite" : "none" }} />
+                <Typography sx={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "#EF4444" }}>Live Projector Feed</Typography>
+              </Stack>
+              <Stack direction="row" spacing={1}>
+                <Box
+                  component="button"
+                  sx={{ fontSize: 9, fontWeight: 600, fontFamily: '"JetBrains Mono", monospace', px: 1.5, py: 0.5, borderRadius: "4px", border: "none", cursor: "pointer", transition: "all 0.2s", bgcolor: "rgba(255,255,255,0.03)", color: "rgba(255,255,255,0.4)", "&:hover": { bgcolor: "rgba(255,255,255,0.06)" } }}
+                >
+                  Clear
+                </Box>
+                <Box
+                  component="button"
+                  sx={{ display: "flex", alignItems: "center", gap: 0.5, fontSize: 9, fontWeight: 600, fontFamily: '"JetBrains Mono", monospace', px: 1.5, py: 0.5, borderRadius: "4px", border: "none", cursor: "pointer", transition: "all 0.2s", bgcolor: "rgba(255,255,255,0.03)", color: "rgba(255,255,255,0.4)", "&:hover": { bgcolor: "rgba(255,255,255,0.06)" } }}
+                >
+                  Project <LaunchIcon sx={{ fontSize: 10 }} />
+                </Box>
+              </Stack>
+            </Stack>
+
+            <Box sx={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", textAlign: "center", px: 4 }}>
+              {currentVerse ? (
+                <>
+                  <Typography sx={{ fontFamily: '"Georgia", serif', fontSize: { xs: 15, md: 18 }, lineHeight: 1.7, color: "rgba(255,255,255,0.9)", fontStyle: "italic" }}>
+                    "{currentVerse.text}"
+                  </Typography>
+                  <Typography sx={{ fontSize: 9, fontFamily: '"JetBrains Mono", monospace', textTransform: "uppercase", letterSpacing: "0.1em", color: "rgba(255,255,255,0.3)", mt: 2 }}>
+                    {currentVerse.reference}
+                  </Typography>
+                </>
+              ) : (
+                <Typography sx={{ fontSize: 11, color: "rgba(255,255,255,0.15)", fontFamily: '"JetBrains Mono", monospace', fontStyle: "italic" }}>
+                  Nothing projected
+                </Typography>
+              )}
+            </Box>
+
+            <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderTop: "1px solid rgba(255,255,255,0.04)", pt: 1.5 }}>
+              <Typography sx={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.05em", color: "rgba(239,68,68,0.6)", fontFamily: '"JetBrains Mono", monospace' }}>
+                {currentVerse ? "LIVE BROADCAST" : "STANDBY"}
+              </Typography>
+              <Typography sx={{ fontSize: 9, fontFamily: '"JetBrains Mono", monospace', color: "rgba(255,255,255,0.2)" }}>{formatTime()}</Typography>
+            </Box>
+          </Card>
+
+          {/* Queue */}
+          <Card sx={{ p: 2, display: "flex", flexDirection: "column", maxHeight: 220 }}>
+            <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1.5 }}>
+              <Stack direction="row" spacing={1} alignItems="center">
+                <ClearAllIcon sx={{ fontSize: 14, color: "rgba(255,255,255,0.3)" }} />
+                <Typography sx={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "rgba(255,255,255,0.4)" }}>Queue System</Typography>
+              </Stack>
+              <Box sx={{ width: 20, height: 20, borderRadius: "6px", bgcolor: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontFamily: '"JetBrains Mono", monospace', color: "rgba(255,255,255,0.5)", fontWeight: 700 }}>{queue.length}</Box>
+            </Stack>
+
+            <Box sx={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", gap: 1 }}>
+              {queue.length === 0 ? (
+                <Box sx={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <Typography sx={{ fontSize: 10, color: "rgba(255,255,255,0.2)", fontStyle: "italic" }}>Queue is empty</Typography>
+                </Box>
+              ) : (
+                queue.slice(0, 3).map((v, i) => (
+                  <Box key={`${v.reference || v.ref}-${i}`} sx={{ p: 1.5, borderRadius: 2, bgcolor: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.04)", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 1 }}>
+                    <Box sx={{ flex: 1, minWidth: 0 }}>
+                      <Typography sx={{ fontSize: 10, fontWeight: 700, fontFamily: '"JetBrains Mono", monospace', color: "#E2B04E" }}>{v.reference || v.ref}</Typography>
+                      <Typography sx={{ fontSize: 9, color: "rgba(255,255,255,0.3)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontStyle: "italic" }}>{v.text}</Typography>
+                    </Box>
+                    <Chip label="LIVE" size="small" color="error" sx={{ height: 18, fontSize: 8, fontWeight: 700 }} />
+                  </Box>
+                ))
+              )}
+            </Box>
+
+            {queue.length > 0 && (
+              <Button
+                variant="contained"
+                color="primary"
+                fullWidth
+                onClick={() => { projectVerse(queue[0]); removeFromQueue(0); }}
+                sx={{ mt: 1.5, py: 1, fontSize: 11, fontWeight: 600, borderRadius: "8px" }}
+              >
+                Project Next →
+              </Button>
+            )}
+          </Card>
+        </Box>
+      </Box>
+
+      {/* Mobile Queue Drawer */}
+      {queueDrawerOpen && (
+        <Box sx={{ position: "fixed", inset: 0, zIndex: 1200, display: { md: "none" } }}>
+          <Box sx={{ position: "absolute", inset: 0, bgcolor: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)" }} onClick={() => setQueueDrawerOpen(false)} />
+          <Box sx={{ position: "absolute", right: 0, top: 0, bottom: 0, width: 320, bgcolor: "rgba(11,15,28,0.95)", backdropFilter: "blur(24px)", borderLeft: "1px solid rgba(255,255,255,0.04)", borderRadius: "16px 0 0 16px", display: "flex", flexDirection: "column", animation: "slide-up 0.25s ease-out" }}>
+            <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ px: 3, pt: 3, pb: 2, borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
+              <Stack direction="row" spacing={1} alignItems="center">
+                <ClearAllIcon sx={{ fontSize: 16, color: "rgba(255,255,255,0.3)" }} />
+                <Typography sx={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "rgba(255,255,255,0.4)" }}>Queue</Typography>
+                <Box sx={{ width: 20, height: 20, borderRadius: "6px", bgcolor: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontFamily: '"JetBrains Mono", monospace', color: "rgba(255,255,255,0.5)", fontWeight: 700 }}>{queue.length}</Box>
+              </Stack>
+              <IconButton onClick={() => setQueueDrawerOpen(false)} size="small" sx={{ color: "rgba(255,255,255,0.3)" }}>
+                <Box component="span" sx={{ fontSize: 12 }}>✕</Box>
+              </IconButton>
+            </Stack>
+            <Box sx={{ flex: 1, overflowY: "auto", px: 3, py: 2, display: "flex", flexDirection: "column", gap: 1 }}>
+              {queue.map((v, i) => (
+                <Box key={i} sx={{ p: 2, borderRadius: 2, bgcolor: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.04)", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 1 }}>
+                  <Box sx={{ flex: 1, minWidth: 0 }}>
+                    <Typography sx={{ fontSize: 11, fontWeight: 700, fontFamily: '"JetBrains Mono", monospace', color: "#E2B04E" }}>{v.reference || v.ref}</Typography>
+                    <Typography sx={{ fontSize: 10, color: "rgba(255,255,255,0.3)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", lineClamp: 2, fontStyle: "italic" }}>{v.text}</Typography>
+                  </Box>
+                  <Box
+                    component="button"
+                    onClick={() => { projectVerse(v); removeFromQueue(i); setQueueDrawerOpen(false); }}
+                    sx={{ px: 2.5, py: 1, fontSize: 10, fontWeight: 700, fontFamily: '"JetBrains Mono", monospace', border: "none", borderRadius: "6px", cursor: "pointer", bgcolor: "#E2B04E", color: "#080D1C", "&:hover": { opacity: 0.9 } }}
+                  >
+                    Live
+                  </Box>
+                </Box>
+              ))}
+            </Box>
+            {queue.length > 0 && (
+              <Box sx={{ px: 3, pb: 3 }}>
+                <Button
+                  variant="contained"
+                  color="primary"
+                  fullWidth
+                  onClick={() => { projectVerse(queue[0]); removeFromQueue(0); setQueueDrawerOpen(false); }}
+                  sx={{ py: 1.5, fontSize: 11, fontWeight: 700, borderRadius: "8px" }}
+                >
+                  Project Next →
+                </Button>
+              </Box>
+            )}
+          </Box>
+        </Box>
+      )}
+    </Box>
   );
 }

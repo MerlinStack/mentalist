@@ -1,19 +1,33 @@
-import { useEffect, useRef, useState } from 'react';
-import { useSoundStore } from '../store/soundStore';
-import { useScriptureStore } from '../store/scriptureStore';
-import { useProjection } from '../hooks/useProjection';
-import { useProjectionStore } from '../store/projectionStore';
-import { useSoundMode } from '../hooks/useSoundMode';
+import { useEffect, useRef, useState } from "react";
+import { useSoundStore, type TranscriptSegment } from "../store/soundStore";
+import { useScriptureStore } from "../store/scriptureStore";
+import { useProjection } from "../hooks/useProjection";
+import { useProjectionStore } from "../store/projectionStore";
+import { useSoundMode } from "../hooks/useSoundMode";
 
-import { useOrchestrator } from '../hooks/useOrchestrator';
-import AiStatusChip from '../components/ai/AiStatusChip';
-import VersePanel from '../components/verse/VersePanel';
-import type { Verse } from '../api/bible';
-import { lookupEngine } from '../services/scriptureLookup';
-import { MATCH_RANGE_OPTIONS } from '../utils/distance';
-import type { MatchRange } from '../utils/distance';
+import { useOrchestrator } from "../hooks/useOrchestrator";
+import AiStatusChip from "../components/ai/AiStatusChip";
+import VersePanel from "../components/verse/VersePanel";
+import type { Verse } from "../api/bible";
+import { lookupEngine } from "../services/scriptureLookup";
+import { MATCH_RANGE_OPTIONS } from "../utils/distance";
+import type { MatchRange } from "../utils/distance";
+import Box from "@mui/material/Box";
+import Typography from "@mui/material/Typography";
+import Button from "@mui/material/Button";
+import IconButton from "@mui/material/IconButton";
+import TextField from "@mui/material/TextField";
+import Select from "@mui/material/Select";
+import MenuItem from "@mui/material/MenuItem";
+import Drawer from "@mui/material/Drawer";
+import Paper from "@mui/material/Paper";
+import Chip from "@mui/material/Chip";
+import Divider from "@mui/material/Divider";
+import ToggleButtonGroup from "@mui/material/ToggleButtonGroup";
+import ToggleButton from "@mui/material/ToggleButton";
+import Tooltip from "@mui/material/Tooltip";
+import { CinemaLabel, CinemaReference, GlassPaper } from "../components/styled";
 
-// Types and constants from second image
 const MODES = ["Scripture", "Music", "Media"] as const;
 const TRANSLATIONS = ["KJV", "NIV", "ESV", "NKJV"] as const;
 
@@ -27,13 +41,49 @@ interface DetectionEntry {
 
 function FloatingOrbs() {
   return (
-    <div className="fixed inset-0 overflow-hidden pointer-events-none z-0">
-      <div className="absolute top-[5%] left-[10%] w-[500px] h-[500px] rounded-full opacity-[0.08] blur-3xl"
-        style={{ background: 'radial-gradient(circle, #C9973A 0%, transparent 70%)', animation: 'float 22s ease-in-out infinite' }} />
-      <div className="absolute bottom-[10%] right-[5%] w-[400px] h-[400px] rounded-full opacity-[0.06] blur-3xl"
-        style={{ background: 'radial-gradient(circle, #4F6BFF 0%, transparent 70%)', animation: 'float 28s ease-in-out infinite reverse' }} />
-      <div className="absolute top-[50%] right-[40%] w-[300px] h-[300px] rounded-full opacity-[0.04] blur-3xl"
-        style={{ background: 'radial-gradient(circle, #10B981 0%, transparent 70%)', animation: 'float 18s ease-in-out infinite 5s' }} />
+    <Box sx={{ position: "fixed", inset: 0, overflow: "hidden", pointerEvents: "none", zIndex: 0 }}>
+      <Box
+        sx={{
+          position: "absolute",
+          top: "5%",
+          left: "10%",
+          width: 500,
+          height: 500,
+          borderRadius: "50%",
+          opacity: 0.08,
+          filter: "blur(96px)",
+          background: "radial-gradient(circle, #C9973A 0%, transparent 70%)",
+          animation: "float 22s ease-in-out infinite",
+        }}
+      />
+      <Box
+        sx={{
+          position: "absolute",
+          bottom: "10%",
+          right: "5%",
+          width: 400,
+          height: 400,
+          borderRadius: "50%",
+          opacity: 0.06,
+          filter: "blur(96px)",
+          background: "radial-gradient(circle, #4F6BFF 0%, transparent 70%)",
+          animation: "float 28s ease-in-out infinite reverse",
+        }}
+      />
+      <Box
+        sx={{
+          position: "absolute",
+          top: "50%",
+          right: "40%",
+          width: 300,
+          height: 300,
+          borderRadius: "50%",
+          opacity: 0.04,
+          filter: "blur(96px)",
+          background: "radial-gradient(circle, #10B981 0%, transparent 70%)",
+          animation: "float 18s ease-in-out infinite 5s",
+        }}
+      />
       <style>{`
         @keyframes float {
           0%, 100% { transform: translate(0, 0) scale(1); }
@@ -41,27 +91,31 @@ function FloatingOrbs() {
           66% { transform: translate(-20px, 20px) scale(0.95); }
         }
       `}</style>
-    </div>
+    </Box>
   );
 }
 
 export const OperatorPage: React.FC = () => {
-  const { transcript, recentChunk, isListening, matchRange, setMatchRange } = useSoundStore();
+  const {
+    transcript,
+    recentChunk,
+    isListening,
+    matchRange,
+    setMatchRange,
+    transcriptHistory,
+    transcriptView,
+    setTranscriptView,
+  } = useSoundStore();
   const { results: searchResults, relatedReferences } = useScriptureStore();
   const { activeVerse } = useScriptureStore();
   const utteranceRef = useRef<(text: string) => void>();
   const { startListening, stopListening } = useSoundMode({ utteranceRef });
-  const { 
-    projectVerse, 
-    clearProjection, 
-    currentVerse: currentLiveVerse,
-  } = useProjection();
+  const { projectVerse, clearProjection, currentVerse: currentLiveVerse } = useProjection();
 
   const queue = useProjectionStore((s) => s.queue);
   const addToQueue = useProjectionStore((s) => s.addToQueue);
   const removeFromQueue = useProjectionStore((s) => s.removeFromQueue);
 
-  // AI pipeline from second image
   const {
     isProcessing,
     audioLevel,
@@ -76,11 +130,8 @@ export const OperatorPage: React.FC = () => {
     frequencyData,
   } = useOrchestrator();
 
-  // Wire semantic fallback: when Web Speech API hears speech with no explicit
-  // reference, the orchestrator's regex+semantic pipeline tries to identify it.
   utteranceRef.current = searchUtterance;
 
-  // State from second image
   const [mode, setMode] = useState<(typeof MODES)[number]>("Scripture");
   const [translation, setTranslation] = useState(0);
   const [elapsed, setElapsed] = useState(0);
@@ -92,53 +143,49 @@ export const OperatorPage: React.FC = () => {
   const channelRef = useRef<BroadcastChannel | null>(null);
   const transcriptRef = useRef<HTMLDivElement | null>(null);
 
-  // Chapter cache for sequential navigation
   const [chapterVerses, setChapterVerses] = useState<Verse[]>([]);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const [previewIdx, setPreviewIdx] = useState(0);
   const chapterBookRef = useRef<string | null>(null);
   const chapterNumRef = useRef<number | null>(null);
 
-  const navigateVerse = (dir: 'prev' | 'next') => {
+  const navigateVerse = (dir: "prev" | "next") => {
     if (chapterVerses.length === 0) return;
     setPreviewIdx((i) => {
-      if (dir === 'next') return (i + 1) % chapterVerses.length;
+      if (dir === "next") return (i + 1) % chapterVerses.length;
       return i === 0 ? chapterVerses.length - 1 : i - 1;
     });
   };
 
-  // Load chapter when a verse is set on the preview
   useEffect(() => {
     const src = previewVerse || activeVerse || detectedVerse;
     if (!src) return;
-    const book = src.book || '';
+    const book = src.book || "";
     const ch = src.chapter || 0;
     if (!book || !ch || (book === chapterBookRef.current && ch === chapterNumRef.current)) return;
     chapterBookRef.current = book;
     chapterNumRef.current = ch;
     const verses = lookupEngine.getChapter(book, ch);
     if (verses.length > 0) {
-      setChapterVerses(verses.map((v) => ({
-        reference: `${v.b} ${v.c}:${v.v}`,
-        text: v.t,
-        book: v.b,
-        chapter: v.c,
-        verse: v.v,
-        translation: 'KJV',
-      })));
+      setChapterVerses(
+        verses.map((v) => ({
+          reference: `${v.b} ${v.c}:${v.v}`,
+          text: v.t,
+          book: v.b,
+          chapter: v.c,
+          verse: v.v,
+          translation: "KJV",
+        })),
+      );
       const idx = verses.findIndex((v) => v.v === src.verse);
       setPreviewIdx(idx >= 0 ? idx : 0);
     }
   }, [previewVerse, activeVerse, detectedVerse]);
 
-  // Auto-scroll transcript when new speech arrives
   useEffect(() => {
-    if (transcriptRef.current) {
-      transcriptRef.current.scrollTop = transcriptRef.current.scrollHeight;
-    }
+    if (transcriptRef.current) transcriptRef.current.scrollTop = transcriptRef.current.scrollHeight;
   }, [transcript, recentChunk]);
 
-  // Update preview verse when detected
   useEffect(() => {
     if (detectedVerse) {
       setPreviewVerse(detectedVerse);
@@ -160,13 +207,10 @@ export const OperatorPage: React.FC = () => {
     }
   }, [detectedVerse, transcript]);
 
-  // System timer
   useEffect(() => {
     const id = setInterval(() => setElapsed((e) => e + 1), 1000);
     return () => clearInterval(id);
   }, []);
-
-  // Sync session channel for active projections
   useEffect(() => {
     channelRef.current = new BroadcastChannel("scriptureflow-projection");
     return () => channelRef.current?.close();
@@ -186,658 +230,1911 @@ export const OperatorPage: React.FC = () => {
     else startListening();
   };
 
-  const formatSessionTime = () => {
-    const mm = String(Math.floor(elapsed / 60)).padStart(2, "0");
-    const ss = String(elapsed % 60).padStart(2, "0");
-    return `${mm}:${ss}`;
-  };
+  const formatSessionTime = () =>
+    `${String(Math.floor(elapsed / 60)).padStart(2, "0")}:${String(elapsed % 60).padStart(2, "0")}`;
 
   const openProjector = () => {
-    // Navigate to projector view
-    window.open('/project', '_blank');
-    if (currentLiveVerse) {
+    window.open("/project", "_blank");
+    if (currentLiveVerse)
       channelRef.current?.postMessage({ type: "PROJECT_VERSE", verse: currentLiveVerse });
-    }
   };
 
   const displayVerse = previewVerse || activeVerse;
 
   return (
-    <div className="min-h-screen text-slate-100 flex flex-col font-sans antialiased selection:bg-[#C9973A]/30">
-
-      {/* Ambient floating orbs */}
+    <Box
+      sx={{
+        minHeight: "100vh",
+        color: "text.primary",
+        display: "flex",
+        flexDirection: "column",
+        fontFamily: "'Inter', system-ui, sans-serif",
+        WebkitFontSmoothing: "antialiased",
+        position: "relative",
+      }}
+    >
       <FloatingOrbs />
 
-      {/* HEADER — deep frosted navigation */}
-      <header className="h-16 border-b border-white/[0.04] flex items-center justify-between px-3 md:px-6 shadow-lg z-20"
-        style={{ background: 'rgba(10, 15, 30, 0.5)', backdropFilter: 'blur(12px)' }}>
-        <div className="flex items-center gap-2 md:gap-3">
-          <div className="h-7 w-7 md:h-8 md:w-8 rounded-lg bg-gradient-to-br from-[#C9973A] to-[#FFD580] shadow-lg shadow-[#C9973A]/20 flex items-center justify-center font-bold text-xs md:text-sm text-[#080D1C] shrink-0">
+      {/* HEADER */}
+      <Paper
+        elevation={3}
+        sx={{
+          height: 64,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          px: { xs: 1.5, md: 3 },
+          borderRadius: 0,
+          bgcolor: "rgba(10, 15, 30, 0.5)",
+          backdropFilter: "blur(12px)",
+          borderBottom: "1px solid rgba(255,255,255,0.04)",
+          zIndex: 20,
+        }}
+      >
+        <Box sx={{ display: "flex", alignItems: "center", gap: { xs: 1, md: 1.5 } }}>
+          <Box
+            sx={{
+              width: { xs: 28, md: 32 },
+              height: { xs: 28, md: 32 },
+              borderRadius: 1.5,
+              background: "linear-gradient(135deg, #C9973A, #FFD580)",
+              boxShadow: "0 4px 12px rgba(201,151,58,0.2)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontWeight: 700,
+              fontSize: { xs: 10, md: 12 },
+              color: "#080D1C",
+              flexShrink: 0,
+            }}
+          >
             D
-          </div>
-          <div className="hidden sm:block">
-            <h1 className="font-semibold text-sm tracking-wide text-white">D'mentalist</h1>
-            <p className="text-[10px] text-slate-400 font-mono tracking-tight">AI SCRIPTURE ENGINE v1.2</p>
-          </div>
+          </Box>
+          <Box sx={{ display: { xs: "none", sm: "block" } }}>
+            <Typography sx={{ fontWeight: 600, fontSize: 13 }}>D'mentalist</Typography>
+            <Typography
+              sx={{
+                fontSize: 9,
+                color: "text.disabled",
+                fontFamily: "'JetBrains Mono Variable', monospace",
+              }}
+            >
+              AI SCRIPTURE ENGINE v1.2
+            </Typography>
+          </Box>
 
-          {/* Mode Tabs — hidden on very small screens */}
-          <div className="hidden md:flex items-center gap-1 border-l border-[#2D3A5C]/40 pl-4 ml-2">
-            <div className="flex rounded-lg bg-[#1A2035]/40 backdrop-blur-md border border-white/[0.04] p-0.5">
-              {MODES.map((m) => (
-                <button
-                  key={m}
-                  onClick={() => setMode(m)}
-                  className={`px-3 py-1 rounded-md text-[11px] font-medium transition-all duration-200 ${
-                    mode === m
-                      ? 'text-[#C9973A] bg-[#C9973A]/12 shadow-sm border border-[#C9973A]/20'
-                      : 'text-slate-500 hover:text-slate-300 border border-transparent hover:bg-white/[0.03]'
-                  }`}
-                >
-                  {m}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-1.5 md:gap-3">
-          {/* Match Range control — visible on tablet+ */}
-          <div className="hidden sm:flex items-center gap-1 bg-[#1A2035]/20 backdrop-blur-md rounded-lg px-2 py-1 border border-white/[0.03]">
-            {MATCH_RANGE_OPTIONS.map((opt) => (
-              <button
-                key={opt.value}
-                onClick={() => setMatchRange(opt.value as MatchRange)}
-                className={`px-1.5 md:px-2 py-0.5 rounded text-[9px] md:text-[10px] font-mono transition-all duration-200 ${
-                  matchRange === opt.value
-                    ? 'text-[#C9973A] bg-[#C9973A]/12'
-                    : 'text-slate-500 hover:text-slate-300'
-                }`}
-                title={opt.description}
-              >
-                {opt.label}
-              </button>
+          <ToggleButtonGroup
+            value={mode}
+            exclusive
+            onChange={(_, v) => v && setMode(v)}
+            size="small"
+            sx={{
+              display: { xs: "none", md: "inline-flex" },
+              ml: 1,
+              pl: 2,
+              borderLeft: "1px solid rgba(45,58,92,0.4)",
+              "& .MuiToggleButton-root": {
+                px: 1.5,
+                py: 0.5,
+                fontSize: 10,
+                fontWeight: 500,
+                borderColor: "transparent",
+                color: "#64748B",
+                "&.Mui-selected": {
+                  bgcolor: "rgba(201,151,58,0.12)",
+                  color: "#C9973A",
+                  borderColor: "rgba(201,151,58,0.2)",
+                },
+              },
+            }}
+          >
+            {MODES.map((m) => (
+              <ToggleButton key={m} value={m}>
+                {m}
+              </ToggleButton>
             ))}
-          </div>
+          </ToggleButtonGroup>
+        </Box>
 
-          {/* AI Status — hidden on mobile */}
-          <div className="hidden lg:flex items-center gap-3 bg-[#1A2035]/20 backdrop-blur-md rounded-lg px-3 py-1.5 border border-white/[0.03]">
-            <span className={`text-[10px] font-mono flex items-center gap-1.5 ${whisperLoaded ? 'text-emerald-400' : 'text-slate-500'}`}>
-              <span className={`h-1.5 w-1.5 rounded-full ${whisperLoaded ? 'bg-emerald-500' : 'bg-slate-600'}`}
-                style={whisperLoaded ? { filter: 'drop-shadow(0 0 6px rgba(16, 185, 129, 0.6))' } : {}} />
-              WHISPER {whisperLoaded ? '✓' : '⟳'}
-            </span>
-            <span className={`text-[10px] font-mono flex items-center gap-1.5 ${semanticLoaded ? 'text-indigo-400' : 'text-slate-500'}`}>
-              <span className={`h-1.5 w-1.5 rounded-full ${semanticLoaded ? 'bg-indigo-400' : 'bg-slate-600'}`}
-                style={semanticLoaded ? { filter: 'drop-shadow(0 0 6px rgba(129, 140, 248, 0.6))' } : {}} />
-              MINILM {semanticLoaded ? '✓' : '⟳'}
-            </span>
-          </div>
+        <Box sx={{ display: "flex", alignItems: "center", gap: { xs: 0.75, md: 1.5 } }}>
+          {/* Match Range */}
+          <Paper
+            variant="outlined"
+            sx={{
+              display: { xs: "none", sm: "flex" },
+              alignItems: "center",
+              gap: 0.5,
+              px: 1,
+              py: 0.5,
+              bgcolor: "rgba(26,32,53,0.2)",
+              backdropFilter: "blur(12px)",
+              borderColor: "rgba(255,255,255,0.03)",
+            }}
+          >
+            {MATCH_RANGE_OPTIONS.map((opt) => (
+              <Chip
+                key={opt.value}
+                label={opt.label}
+                size="small"
+                onClick={() => setMatchRange(opt.value as MatchRange)}
+                title={opt.description}
+                sx={{
+                  height: 20,
+                  fontSize: 9,
+                  fontFamily: "'JetBrains Mono Variable', monospace",
+                  bgcolor: matchRange === opt.value ? "rgba(201,151,58,0.12)" : "transparent",
+                  color: matchRange === opt.value ? "#C9973A" : "#64748B",
+                  "&:hover": { color: matchRange === opt.value ? "#C9973A" : "#CBD5E1" },
+                }}
+              />
+            ))}
+          </Paper>
 
-          {/* AiStatusChip popover — hidden on mobile */}
-          <div className="hidden lg:relative lg:group">
-            <span className="text-[10px] text-slate-500 font-mono cursor-help border-b border-dotted border-slate-500/60 hover:text-slate-300 transition-colors">
+          {/* AI Status */}
+          <Paper
+            variant="outlined"
+            sx={{
+              display: { xs: "none", lg: "flex" },
+              alignItems: "center",
+              gap: 1.5,
+              px: 1.5,
+              py: 0.75,
+              bgcolor: "rgba(26,32,53,0.2)",
+              backdropFilter: "blur(12px)",
+              borderColor: "rgba(255,255,255,0.03)",
+            }}
+          >
+            <Chip
+              icon={
+                <Box
+                  sx={{
+                    width: 6,
+                    height: 6,
+                    borderRadius: "50%",
+                    bgcolor: whisperLoaded ? "#10B981" : "#475569",
+                    filter: whisperLoaded ? "drop-shadow(0 0 6px rgba(16,185,129,0.6))" : "none",
+                  }}
+                />
+              }
+              label={`WHISPER ${whisperLoaded ? "✓" : "⟳"}`}
+              size="small"
+              sx={{
+                height: 20,
+                fontSize: 9,
+                fontFamily: "'JetBrains Mono Variable', monospace",
+                bgcolor: "transparent",
+                color: whisperLoaded ? "#34D399" : "#64748B",
+              }}
+            />
+            <Chip
+              icon={
+                <Box
+                  sx={{
+                    width: 6,
+                    height: 6,
+                    borderRadius: "50%",
+                    bgcolor: semanticLoaded ? "#818CF8" : "#475569",
+                    filter: semanticLoaded ? "drop-shadow(0 0 6px rgba(129,140,248,0.6))" : "none",
+                  }}
+                />
+              }
+              label={`MINILM ${semanticLoaded ? "✓" : "⟳"}`}
+              size="small"
+              sx={{
+                height: 20,
+                fontSize: 9,
+                fontFamily: "'JetBrains Mono Variable', monospace",
+                bgcolor: "transparent",
+                color: semanticLoaded ? "#818CF8" : "#64748B",
+              }}
+            />
+          </Paper>
+
+          <Tooltip title="Model status">
+            <Typography
+              sx={{
+                display: { xs: "none", lg: "inline-flex" },
+                fontSize: 9,
+                color: "text.disabled",
+                fontFamily: "'JetBrains Mono Variable', monospace",
+                cursor: "help",
+                borderBottom: "1px dotted",
+                borderColor: "rgba(100,116,139,0.6)",
+                "&:hover": { color: "#CBD5E1" },
+                transition: "color 0.15s",
+              }}
+            >
               models
-            </span>
-            <div className="absolute top-full right-0 mt-2 hidden group-hover:block z-50 animate-fadeIn">
+            </Typography>
+          </Tooltip>
+          <Box
+            sx={{
+              display: { xs: "none", lg: "block" },
+              position: "relative",
+              "&:hover > .MuiPaper-root": { display: "block" },
+            }}
+          >
+            <Box
+              className="MuiPaper-root"
+              sx={{
+                display: "none",
+                position: "absolute",
+                top: "100%",
+                right: 0,
+                mt: 1,
+                zIndex: 50,
+              }}
+            >
               <AiStatusChip />
-            </div>
-          </div>
+            </Box>
+          </Box>
 
-          {/* Queue count badge */}
           {queue.length > 0 && (
-            <button onClick={() => setQueueDrawerOpen(!queueDrawerOpen)}
-              className="text-[10px] font-mono text-amber-400 bg-amber-500/10 px-2 py-1 rounded border border-amber-500/30 lg:hidden"
-              style={{ boxShadow: '0 0 12px rgba(245, 158, 11, 0.1)' }}>
-              Queue · <span className="font-bold">{queue.length}</span>
-            </button>
+            <Button
+              size="small"
+              onClick={() => setQueueDrawerOpen(!queueDrawerOpen)}
+              sx={{
+                display: { lg: "none" },
+                fontSize: 9,
+                fontFamily: "'JetBrains Mono Variable', monospace",
+                color: "#FBBF24",
+                bgcolor: "rgba(245,158,11,0.1)",
+                border: "1px solid rgba(245,158,11,0.3)",
+                "&:hover": { bgcolor: "rgba(245,158,11,0.15)" },
+              }}
+            >
+              Queue ·{" "}
+              <Box component="span" sx={{ fontWeight: 700, ml: 0.25 }}>
+                {queue.length}
+              </Box>
+            </Button>
           )}
 
-          {/* Mic Toggle */}
-          <button
+          <Button
+            size="small"
+            variant={isListening ? "outlined" : "contained"}
             onClick={handleToggleMic}
-            className={`flex items-center gap-1.5 md:gap-2 px-2 md:px-3 py-1.5 rounded-lg text-[10px] md:text-xs font-medium transition-all duration-200 border ${
-              isListening
-                ? 'bg-rose-500/10 text-rose-400 border-rose-500/30'
-                : 'bg-slate-800/50 text-slate-300 border-slate-700/50 hover:bg-slate-700/50 hover:border-slate-600'
-            }`}
-            style={isListening ? { boxShadow: '0 0 16px rgba(244, 63, 94, 0.15)' } : {}}
+            startIcon={
+              <Box
+                sx={{
+                  width: 6,
+                  height: 6,
+                  borderRadius: "50%",
+                  bgcolor: isListening ? "#F43F5E" : "#64748B",
+                  animation: isListening ? "ping 1s cubic-bezier(0, 0, 0.2, 1) infinite" : "none",
+                  filter: isListening ? "drop-shadow(0 0 6px rgba(244,63,94,0.8))" : "none",
+                }}
+              />
+            }
+            sx={{
+              fontSize: { xs: 9, md: 11 },
+              px: { xs: 1, md: 1.5 },
+              borderColor: isListening ? "rgba(244,63,94,0.3)" : "rgba(51,65,85,0.5)",
+              color: isListening ? "#FB7185" : "#CBD5E1",
+              bgcolor: isListening ? "rgba(244,63,94,0.1)" : "rgba(30,41,59,0.5)",
+              "&:hover": isListening
+                ? { bgcolor: "rgba(244,63,94,0.15)" }
+                : { bgcolor: "rgba(51,65,85,0.5)" },
+              boxShadow: isListening ? "0 0 16px rgba(244,63,94,0.15)" : "none",
+              ".MuiButton-startIcon": { mr: { xs: 0.5, md: 0.75 } },
+            }}
           >
-            <span className={`h-1.5 w-1.5 rounded-full ${isListening ? 'bg-rose-500 animate-ping' : 'bg-slate-500'}`}
-              style={isListening ? { filter: 'drop-shadow(0 0 6px rgba(244, 63, 94, 0.8))' } : {}} />
-            <span className="hidden md:inline">{isListening ? 'Mute' : 'Mic'}</span>
-          </button>
+            <Box component="span" sx={{ display: { xs: "none", md: "inline" } }}>
+              {isListening ? "Mute" : "Mic"}
+            </Box>
+          </Button>
 
-          <div className="h-4 w-[1px] bg-slate-700 hidden md:block" />
+          <Divider
+            orientation="vertical"
+            flexItem
+            sx={{ borderColor: "rgba(51,65,85,1)", display: { xs: "none", md: "block" } }}
+          />
 
-          {/* Push Live Button */}
-          <button
+          <Button
+            variant="contained"
             disabled={!displayVerse}
             onClick={handlePushLive}
-            className="px-3 md:px-4 py-1.5 text-[10px] md:text-xs font-semibold bg-gradient-to-r from-[#C9973A] to-[#FFD580] text-[#080D1C] rounded-lg transition-all duration-200 disabled:opacity-30 disabled:pointer-events-none hover:scale-[1.02] active:scale-[0.98]"
-            style={displayVerse ? { boxShadow: '0 0 20px rgba(201, 151, 58, 0.25), 0 4px 12px rgba(201, 151, 58, 0.15)' } : {}}
+            sx={{
+              fontSize: { xs: 9, md: 11 },
+              px: { xs: 1.5, md: 2 },
+              background: "linear-gradient(135deg, #C9973A, #FFD580)",
+              boxShadow: displayVerse
+                ? "0 0 20px rgba(201,151,58,0.25), 0 4px 12px rgba(201,151,58,0.15)"
+                : "none",
+              "&:hover:not(:disabled)": {
+                background: "linear-gradient(135deg, #C9973A, #FFD580)",
+                transform: "scale(1.02)",
+              },
+              "&:active:not(:disabled)": { transform: "scale(0.98)" },
+            }}
           >
-            <span className="hidden sm:inline">Push Live</span>
-            <span className="sm:hidden">→</span>
-          </button>
-        </div>
-      </header>
+            <Box component="span" sx={{ display: { xs: "none", sm: "inline" } }}>
+              Push Live
+            </Box>
+            <Box component="span" sx={{ display: { xs: "inline", sm: "none" } }}>
+              →
+            </Box>
+          </Button>
+        </Box>
+      </Paper>
 
-      <main className="flex-1 grid grid-cols-1 md:grid-cols-12 gap-4 md:gap-6 p-3 md:p-6 overflow-y-auto md:overflow-hidden">
-
-        {/* LEFT PANEL */}
-        <section className="col-span-12 md:col-span-4 lg:col-span-3 flex flex-col gap-4">
-
-          {/* Live Transcript with Waveform and AI detection — premium glass */}
-          <div className="glass-premium flex flex-col min-h-[200px] md:h-[280px] p-4 rounded-xl shadow-[0_8px_32px_rgba(0,0,0,0.45)]">
-            <div className="flex items-center justify-between mb-3 border-b border-white/[0.04] pb-2">
-              <div className="flex items-center gap-3">
-                <div className="w-1 h-4 rounded-full bg-gradient-to-b from-emerald-400/80 to-emerald-600/20" />
-                <h3 className="text-cinema-label">Live Transcript</h3>
-                <span className="text-[10px] font-mono text-slate-500/70">{formatSessionTime()}</span>
-              </div>
-              <div className="flex items-center gap-2">
+      {/* MAIN */}
+      <Box
+        sx={{
+          flex: 1,
+          display: "grid",
+          gridTemplateColumns: { xs: "1fr", md: "repeat(12, 1fr)" },
+          gap: { xs: 2, md: 3 },
+          p: { xs: 1.5, md: 3 },
+          overflowY: "auto",
+          overflow: { md: "hidden" },
+        }}
+      >
+        {/* LEFT */}
+        <Box
+          sx={{
+            gridColumn: { xs: "span 12", md: "span 4", lg: "span 3" },
+            display: "flex",
+            flexDirection: "column",
+            gap: 2,
+          }}
+        >
+          {/* Live Transcript */}
+          <GlassPaper
+            sx={{
+              display: "flex",
+              flexDirection: "column",
+              minHeight: 200,
+              height: { md: 280 },
+              p: 2,
+            }}
+          >
+            <Box
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                mb: 1.5,
+                borderBottom: "1px solid rgba(255,255,255,0.04)",
+                pb: 1,
+              }}
+            >
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+                <Box
+                  sx={{
+                    width: 4,
+                    height: 16,
+                    borderRadius: 1,
+                    background:
+                      "linear-gradient(180deg, rgba(52,211,153,0.8) 0%, rgba(52,211,153,0.2) 100%)",
+                  }}
+                />
+                <CinemaLabel>Live Transcript</CinemaLabel>
+                <Typography
+                  sx={{
+                    fontSize: 9,
+                    fontFamily: "'JetBrains Mono Variable', monospace",
+                    color: "rgba(100,116,139,0.7)",
+                  }}
+                >
+                  {formatSessionTime()}
+                </Typography>
+              </Box>
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                 {isProcessing && (
-                  <span className="text-[9px] text-amber-400 animate-pulse font-mono">PROCESSING</span>
+                  <Chip
+                    label="PROCESSING"
+                    size="small"
+                    sx={{
+                      height: 16,
+                      fontSize: 8,
+                      fontFamily: "'JetBrains Mono Variable', monospace",
+                      bgcolor: "transparent",
+                      color: "#FBBF24",
+                      animation: "pulse 2s infinite",
+                    }}
+                  />
                 )}
-                <span className={`text-[10px] px-1.5 py-0.5 rounded font-mono transition-all ${
-                  isListening
-                    ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-                    : 'bg-slate-800/50 text-slate-500 border border-white/[0.04]'
-                }`}
-                  style={isListening ? { filter: 'drop-shadow(0 0 8px rgba(16, 185, 129, 0.25))' } : {}}>
-                  {isListening ? 'LISTENING' : 'OFFLINE'}
-                </span>
-              </div>
-            </div>
+                <Chip
+                  label={isListening ? "LISTENING" : "OFFLINE"}
+                  size="small"
+                  sx={{
+                    height: 18,
+                    fontSize: 9,
+                    fontFamily: "'JetBrains Mono Variable', monospace",
+                    bgcolor: isListening ? "rgba(16,185,129,0.1)" : "rgba(30,41,59,0.5)",
+                    color: isListening ? "#34D399" : "#64748B",
+                    border: isListening
+                      ? "1px solid rgba(16,185,129,0.2)"
+                      : "1px solid rgba(255,255,255,0.04)",
+                  }}
+                />
+                <Button
+                  size="small"
+                  onClick={() => setTranscriptView(transcriptView === "live" ? "history" : "live")}
+                  sx={{
+                    minWidth: 0,
+                    px: 1,
+                    py: 0.25,
+                    fontSize: 9,
+                    fontFamily: "'JetBrains Mono Variable', monospace",
+                    color: transcriptView === "history" ? "#C9973A" : "#64748B",
+                    bgcolor: transcriptView === "history" ? "rgba(201,151,58,0.2)" : "transparent",
+                    border:
+                      transcriptView === "history"
+                        ? "1px solid rgba(201,151,58,0.3)"
+                        : "1px solid transparent",
+                    "&:hover": { color: "#CBD5E1", borderColor: "rgba(255,255,255,0.1)" },
+                  }}
+                >
+                  {transcriptView === "live" ? "History" : "Live"}
+                </Button>
+              </Box>
+            </Box>
 
-            {/* Waveform Visualization — real-time frequency spectrum */}
-            <div className="h-12 mb-3 flex items-end gap-0.5">
+            {/* Waveform */}
+            <Box sx={{ height: 48, mb: 1.5, display: "flex", alignItems: "flex-end", gap: "1px" }}>
               {(() => {
                 const fft = frequencyData;
                 const barCount = 50;
                 const isActive = isListening && fft.length > 0;
                 const step = fft.length > 0 ? Math.max(1, Math.floor(fft.length / barCount)) : 1;
-
                 return Array.from({ length: barCount }, (_, i) => {
                   let height;
                   if (isActive) {
                     const bin = Math.min(i * step, fft.length - 1);
                     const val = fft[bin] / 255;
-                    const smoothed = Math.pow(val, 0.6);
-                    height = Math.max(4, Math.min(100, smoothed * 100));
-                  } else {
-                    height = 6 + (i % 5) * 2;
-                  }
-
-                  const getColor = () => {
-                    if (!isActive) return '#1E293B';
-                    const intensity = height / 100;
-                    if (intensity > 0.7) return `hsl(160, 80%, ${45 + intensity * 25}%)`;
-                    if (intensity > 0.4) return `hsl(330, 85%, ${45 + intensity * 20}%)`;
-                    return `hsl(340, 80%, ${35 + intensity * 30}%)`;
-                  };
-                  const barGlow = isActive ? `0 0 ${6 + height * 0.06}px ${getColor()}` : 'none';
-
+                    height = Math.max(4, Math.min(100, Math.pow(val, 0.6) * 100));
+                  } else height = 6 + (i % 5) * 2;
+                  const intensity = height / 100;
+                  const color = !isActive
+                    ? "#1E293B"
+                    : intensity > 0.7
+                      ? `hsl(160,80%,${45 + intensity * 25}%)`
+                      : intensity > 0.4
+                        ? `hsl(330,85%,${45 + intensity * 20}%)`
+                        : `hsl(340,80%,${35 + intensity * 30}%)`;
                   return (
-                    <div
+                    <Box
                       key={i}
-                      className="flex-1 rounded-sm transition-all duration-75"
-                      style={{
+                      sx={{
+                        flex: 1,
+                        borderRadius: "2px",
+                        transition: "height 0.075s",
                         height: `${height}%`,
-                        background: getColor(),
-                        minHeight: '2px',
-                        opacity: isActive ? 0.7 + (height / 100) * 0.3 : 0.2,
-                        boxShadow: barGlow,
+                        background: color,
+                        minHeight: "2px",
+                        opacity: isActive ? 0.7 + intensity * 0.3 : 0.2,
+                        boxShadow: isActive ? `0 0 ${6 + height * 0.06}px ${color}` : "none",
                       }}
                     />
                   );
                 });
               })()}
-            </div>
+            </Box>
 
-            {/* Transcript Text */}
-            <div ref={transcriptRef} className="flex-1 overflow-y-auto font-mono text-xs leading-relaxed space-y-2 text-slate-300 pr-1 select-text min-h-0">
-              {isListening ? (
-                <div className="space-y-2">
+            <Box
+              ref={transcriptRef}
+              sx={{
+                flex: 1,
+                overflowY: "auto",
+                fontFamily: "'JetBrains Mono Variable', monospace",
+                fontSize: 11,
+                lineHeight: 1.6,
+                color: "text.secondary",
+                pr: 0.5,
+                minHeight: 0,
+              }}
+            >
+              {transcriptView === "history" ? (
+                <TranscriptHistoryView
+                  history={transcriptHistory}
+                  onSwitchLive={() => setTranscriptView("live")}
+                />
+              ) : isListening ? (
+                <Box>
                   {transcript && (
-                    <div className="text-slate-300">
+                    <Typography
+                      sx={{
+                        color: "text.secondary",
+                        fontFamily: "'JetBrains Mono Variable', monospace",
+                        fontSize: 11,
+                      }}
+                    >
                       {transcript}
                       {recentChunk && transcript.includes(recentChunk) && (
-                        <span className="text-blue-400 font-medium bg-blue-500/5 px-1 rounded">
+                        <Box
+                          component="span"
+                          sx={{
+                            color: "#60A5FA",
+                            fontWeight: 500,
+                            bgcolor: "rgba(59,130,246,0.05)",
+                            px: 0.5,
+                            borderRadius: 0.5,
+                          }}
+                        >
                           {recentChunk}
-                        </span>
+                        </Box>
                       )}
-                    </div>
+                    </Typography>
                   )}
-
                   {recentChunk && !transcript?.includes(recentChunk) && (
-                    <div className="text-blue-400 font-medium animate-pulse bg-blue-500/5 px-1 rounded">
+                    <Typography
+                      sx={{
+                        color: "#60A5FA",
+                        fontWeight: 500,
+                        bgcolor: "rgba(59,130,246,0.05)",
+                        px: 0.5,
+                        borderRadius: 0.5,
+                        animation: "pulse 2s infinite",
+                        fontFamily: "'JetBrains Mono Variable', monospace",
+                        fontSize: 11,
+                      }}
+                    >
                       {recentChunk}
-                    </div>
+                    </Typography>
                   )}
-
                   {detectedVerse && (
-                    <div className="mt-2 flex items-center gap-3 text-[10px] border-t border-white/5 pt-2">
-                      <span className="text-emerald-400">✓ Detected:</span>
-                      <span className="text-white font-medium">{detectedVerse.reference}</span>
-                      <span className="text-slate-500">· 94% confidence</span>
-                    </div>
+                    <Box
+                      sx={{
+                        mt: 1,
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 1.5,
+                        borderTop: "1px solid rgba(255,255,255,0.04)",
+                        pt: 1,
+                      }}
+                    >
+                      <Chip
+                        label="✓ Detected"
+                        size="small"
+                        sx={{
+                          height: 18,
+                          fontSize: 9,
+                          fontFamily: "'JetBrains Mono Variable', monospace",
+                          bgcolor: "transparent",
+                          color: "#34D399",
+                          p: 0,
+                        }}
+                      />
+                      <Typography
+                        sx={{
+                          color: "#fff",
+                          fontWeight: 500,
+                          fontFamily: "'JetBrains Mono Variable', monospace",
+                          fontSize: 9,
+                        }}
+                      >
+                        {detectedVerse.reference}
+                      </Typography>
+                      <Typography
+                        sx={{
+                          color: "text.disabled",
+                          fontFamily: "'JetBrains Mono Variable', monospace",
+                          fontSize: 9,
+                        }}
+                      >
+                        · 94% confidence
+                      </Typography>
+                    </Box>
                   )}
-                </div>
+                </Box>
               ) : (
-                <p className="text-slate-500 italic text-[11px]">
+                <Typography
+                  sx={{
+                    color: "text.disabled",
+                    fontStyle: "italic",
+                    fontSize: 10,
+                    fontFamily: "'JetBrains Mono Variable', monospace",
+                  }}
+                >
                   Vocal capture hardware unlinked. Trigger mic connection above.
-                </p>
+                </Typography>
               )}
-            </div>
-          </div>
+            </Box>
+          </GlassPaper>
 
-          {/* Engine Infrastructure — premium glass */}
-          <div className="glass-premium rounded-xl p-4 flex-1 text-[11px] font-mono space-y-2.5 text-slate-400 shadow-[0_8px_32px_rgba(0,0,0,0.45)]">
-            <div className="flex items-center gap-2 border-b border-white/[0.04] pb-2 mb-2">
-              <div className="w-1 h-3 rounded-full bg-gradient-to-b from-[#C9973A] to-[#C9973A]/30" />
-              <h4 className="text-cinema-label">Engine Infrastructure</h4>
-            </div>
+          {/* Engine Infrastructure */}
+          <GlassPaper
+            sx={{
+              p: 2,
+              flex: 1,
+              fontFamily: "'JetBrains Mono Variable', monospace",
+              fontSize: 10,
+              color: "text.secondary",
+            }}
+          >
+            <Box
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                gap: 1,
+                borderBottom: "1px solid rgba(255,255,255,0.04)",
+                pb: 1,
+                mb: 1,
+              }}
+            >
+              <Box
+                sx={{
+                  width: 4,
+                  height: 12,
+                  borderRadius: 1,
+                  background: "linear-gradient(180deg, #C9973A 0%, rgba(201,151,58,0.3) 100%)",
+                }}
+              />
+              <CinemaLabel>Engine Infrastructure</CinemaLabel>
+            </Box>
 
-            {/* Match Range — visible on mobile/tablet */}
-            <div className="flex sm:hidden items-center justify-between">
-              <span className="text-slate-500">Match Range</span>
-              <select
+            <Box
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                mb: 1.5,
+              }}
+            >
+              <Typography
+                sx={{
+                  color: "text.disabled",
+                  fontFamily: "'JetBrains Mono Variable', monospace",
+                  fontSize: 9,
+                }}
+              >
+                Match Range
+              </Typography>
+              <Select
                 value={matchRange}
                 onChange={(e) => setMatchRange(e.target.value as MatchRange)}
-                className="bg-[#1A2035]/60 text-slate-300 border border-white/[0.06] rounded px-2 py-0.5 text-[10px] font-mono outline-none focus:border-[#C9973A]/40"
+                size="small"
+                sx={{
+                  fontSize: 9,
+                  fontFamily: "'JetBrains Mono Variable', monospace",
+                  color: "#CBD5E1",
+                  height: 24,
+                  "& .MuiOutlinedInput-notchedOutline": { borderColor: "rgba(255,255,255,0.06)" },
+                  "&:hover .MuiOutlinedInput-notchedOutline": {
+                    borderColor: "rgba(201,151,58,0.4)",
+                  },
+                  "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
+                    borderColor: "rgba(201,151,58,0.4)",
+                  },
+                  "& .MuiSelect-icon": { color: "#64748B", fontSize: 16 },
+                }}
               >
                 {MATCH_RANGE_OPTIONS.map((opt) => (
-                  <option key={opt.value} value={opt.value}>{opt.label} — {opt.description}</option>
+                  <MenuItem
+                    key={opt.value}
+                    value={opt.value}
+                    sx={{ fontSize: 10, fontFamily: "'JetBrains Mono Variable', monospace" }}
+                  >
+                    {opt.label} — {opt.description}
+                  </MenuItem>
                 ))}
-              </select>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-slate-500">Whisper ASR</span> 
-              <span className={`flex items-center gap-1.5 ${whisperLoaded ? "text-emerald-400" : "text-slate-500"}`}>
-                <span className={`h-1.5 w-1.5 rounded-full ${whisperLoaded ? 'bg-emerald-500' : 'bg-slate-600'}`}
-                  style={whisperLoaded ? { filter: 'drop-shadow(0 0 6px rgba(16, 185, 129, 0.6))' } : {}} />
-                {whisperLoaded ? 'Connected' : 'Loading'}
-              </span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-slate-500">Embedder</span> 
-              <span className={`flex items-center gap-1.5 ${semanticLoaded ? "text-indigo-400" : "text-slate-500"}`}>
-                <span className={`h-1.5 w-1.5 rounded-full ${semanticLoaded ? 'bg-indigo-400' : 'bg-slate-600'}`}
-                  style={semanticLoaded ? { filter: 'drop-shadow(0 0 6px rgba(129, 140, 248, 0.6))' } : {}} />
-                {semanticLoaded ? 'Vector Ready' : 'Loading'}
-              </span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-slate-500">Core</span> 
-              <span className="text-indigo-400/80">React 19 + TS 5.8</span>
-            </div>
-            
-            {/* Session Timer */}
-            <div className="flex justify-between items-center pt-2 border-t border-white/[0.04] mt-2">
-              <span className="text-slate-500">Session</span>
-              <span className="text-slate-300 font-semibold">{formatSessionTime()}</span>
-            </div>
+              </Select>
+            </Box>
 
-          </div>
+            <Box
+              sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 1 }}
+            >
+              <Typography
+                sx={{
+                  color: "text.disabled",
+                  fontFamily: "'JetBrains Mono Variable', monospace",
+                  fontSize: 9,
+                }}
+              >
+                Whisper ASR
+              </Typography>
+              <Chip
+                label={whisperLoaded ? "Connected" : "Loading"}
+                size="small"
+                icon={
+                  <Box
+                    sx={{
+                      width: 6,
+                      height: 6,
+                      borderRadius: "50%",
+                      bgcolor: whisperLoaded ? "#10B981" : "#475569",
+                      filter: whisperLoaded ? "drop-shadow(0 0 6px rgba(16,185,129,0.6))" : "none",
+                    }}
+                  />
+                }
+                sx={{
+                  height: 20,
+                  fontSize: 9,
+                  fontFamily: "'JetBrains Mono Variable', monospace",
+                  bgcolor: "transparent",
+                  color: whisperLoaded ? "#34D399" : "text.disabled",
+                }}
+              />
+            </Box>
+            <Box
+              sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 1 }}
+            >
+              <Typography
+                sx={{
+                  color: "text.disabled",
+                  fontFamily: "'JetBrains Mono Variable', monospace",
+                  fontSize: 9,
+                }}
+              >
+                Embedder
+              </Typography>
+              <Chip
+                label={semanticLoaded ? "Vector Ready" : "Loading"}
+                size="small"
+                icon={
+                  <Box
+                    sx={{
+                      width: 6,
+                      height: 6,
+                      borderRadius: "50%",
+                      bgcolor: semanticLoaded ? "#818CF8" : "#475569",
+                      filter: semanticLoaded
+                        ? "drop-shadow(0 0 6px rgba(129,140,248,0.6))"
+                        : "none",
+                    }}
+                  />
+                }
+                sx={{
+                  height: 20,
+                  fontSize: 9,
+                  fontFamily: "'JetBrains Mono Variable', monospace",
+                  bgcolor: "transparent",
+                  color: semanticLoaded ? "#818CF8" : "text.disabled",
+                }}
+              />
+            </Box>
+            <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <Typography
+                sx={{
+                  color: "text.disabled",
+                  fontFamily: "'JetBrains Mono Variable', monospace",
+                  fontSize: 9,
+                }}
+              >
+                Core
+              </Typography>
+              <Chip
+                label="React 19 + TS 5.8"
+                size="small"
+                sx={{
+                  height: 20,
+                  fontSize: 9,
+                  fontFamily: "'JetBrains Mono Variable', monospace",
+                  bgcolor: "transparent",
+                  color: "rgba(129,140,248,0.8)",
+                }}
+              />
+            </Box>
 
-          {/* Manual scripture search — standalone box */}
-          <div className="glass-premium rounded-xl p-4 shadow-[0_8px_32px_rgba(0,0,0,0.45)]">
-            <div className="flex items-center gap-2 border-b border-white/[0.04] pb-2 mb-3">
-              <div className="w-1 h-3 rounded-full bg-gradient-to-b from-emerald-400/80 to-emerald-600/20" />
-              <h4 className="text-cinema-label">Scripture Search</h4>
-            </div>
-            <form
+            <Box
+              sx={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                pt: 1,
+                borderTop: "1px solid rgba(255,255,255,0.04)",
+                mt: 1,
+              }}
+            >
+              <Typography
+                sx={{
+                  color: "text.disabled",
+                  fontFamily: "'JetBrains Mono Variable', monospace",
+                  fontSize: 9,
+                }}
+              >
+                Session
+              </Typography>
+              <Typography
+                sx={{
+                  color: "text.primary",
+                  fontWeight: 600,
+                  fontFamily: "'JetBrains Mono Variable', monospace",
+                  fontSize: 9,
+                }}
+              >
+                {formatSessionTime()}
+              </Typography>
+            </Box>
+          </GlassPaper>
+
+          {/* Scripture Search */}
+          <GlassPaper sx={{ p: 2 }}>
+            <Box
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                gap: 1,
+                borderBottom: "1px solid rgba(255,255,255,0.04)",
+                pb: 1,
+                mb: 1.5,
+              }}
+            >
+              <Box
+                sx={{
+                  width: 4,
+                  height: 12,
+                  borderRadius: 1,
+                  background:
+                    "linear-gradient(180deg, rgba(52,211,153,0.8) 0%, rgba(52,211,153,0.2) 100%)",
+                }}
+              />
+              <CinemaLabel>Scripture Search</CinemaLabel>
+            </Box>
+
+            <Box
+              component="form"
               onSubmit={(e) => {
                 e.preventDefault();
                 const val = searchInputRef.current?.value.trim();
                 if (val) {
                   searchReferences(val);
                   setSelectedSearchRef(null);
-                  searchInputRef.current!.value = '';
+                  searchInputRef.current!.value = "";
                 }
               }}
-              className="flex items-center gap-1.5"
+              sx={{ display: "flex", alignItems: "center", gap: 0.75 }}
             >
-              <input
-                ref={searchInputRef}
-                type="text"
+              <TextField
+                inputRef={searchInputRef}
                 placeholder="Quote, topic, or reference…"
-                className="flex-1 bg-[#1A2035]/60 text-slate-200 border border-white/[0.06] rounded px-2 py-1.5 text-[11px] font-mono outline-none placeholder:text-slate-600 focus:border-[#C9973A]/40 transition-colors"
+                size="small"
+                fullWidth
+                sx={{
+                  "& .MuiOutlinedInput-root": {
+                    fontSize: 10,
+                    fontFamily: "'JetBrains Mono Variable', monospace",
+                    bgcolor: "rgba(26,32,53,0.6)",
+                    color: "#E2E8F0",
+                    "& fieldset": { borderColor: "rgba(255,255,255,0.06)" },
+                    "&:hover fieldset": { borderColor: "rgba(201,151,58,0.4)" },
+                    "&.Mui-focused fieldset": { borderColor: "rgba(201,151,58,0.4)" },
+                  },
+                  "& .MuiOutlinedInput-input": { py: 0.75 },
+                }}
               />
-              <button
+              <Button
                 type="submit"
-                className="px-3 py-1.5 text-[10px] font-semibold bg-gradient-to-r from-[#C9973A] to-[#FFD580] text-[#080D1C] rounded-lg shadow-md shadow-[#C9973A]/20 hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 shrink-0"
+                variant="contained"
+                sx={{ px: 1.5, py: 0.75, fontSize: 9, minWidth: 0, flexShrink: 0 }}
               >
                 Find
-              </button>
-            </form>
+              </Button>
+            </Box>
 
-            {/* Search Results */}
             {searchResults.length > 0 && (
-              <div className="mt-3 max-h-[260px] overflow-y-auto space-y-1.5 border-t border-white/[0.04] pt-3">
-                {searchResults.slice(0, 10).map((v, i) => {
-                  const ref = v.reference || v.ref || '';
-                  const text = v.text || '';
+              <Box
+                sx={{
+                  mt: 1.5,
+                  maxHeight: 260,
+                  overflowY: "auto",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 0.75,
+                  borderTop: "1px solid rgba(255,255,255,0.04)",
+                  pt: 1.5,
+                }}
+              >
+                {searchResults.slice(0, 10).map((v) => {
+                  const ref = v.reference || v.ref || "";
+                  const text = v.text || "";
                   const isSelected = ref === selectedSearchRef;
                   return (
-                    <button
+                    <Button
                       key={ref}
+                      fullWidth
                       onClick={async () => {
                         setSelectedSearchRef(ref);
                         await searchPreview(text ? `${ref} ${text}` : ref);
                         findRelated(text || ref);
                       }}
-                      className={`w-full text-left p-2 rounded-lg transition-all duration-150 ${
-                        isSelected
-                          ? 'bg-[#C9973A]/10 border border-[#C9973A]/30'
-                          : 'bg-[#1A2035]/30 border border-transparent hover:bg-[#1A2035]/60 hover:border-white/[0.06]'
-                      }`}
+                      sx={{
+                        justifyContent: "flex-start",
+                        textAlign: "left",
+                        p: 1,
+                        borderRadius: 1.5,
+                        textTransform: "none",
+                        bgcolor: isSelected ? "rgba(201,151,58,0.1)" : "rgba(26,32,53,0.3)",
+                        border: isSelected
+                          ? "1px solid rgba(201,151,58,0.3)"
+                          : "1px solid transparent",
+                        "&:hover": {
+                          bgcolor: "rgba(26,32,53,0.6)",
+                          borderColor: "rgba(255,255,255,0.06)",
+                        },
+                        display: "block",
+                      }}
                     >
-                      <div className="flex items-center gap-2">
-                        <span className={`text-[10px] font-semibold shrink-0 ${isSelected ? 'text-[#C9973A]' : 'text-slate-300'}`}>
+                      <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                        <Typography
+                          sx={{
+                            fontSize: 9,
+                            fontWeight: 600,
+                            flexShrink: 0,
+                            color: isSelected ? "#C9973A" : "text.primary",
+                          }}
+                        >
                           {ref}
-                        </span>
+                        </Typography>
                         {(v as any).score != null && (
-                          <span className="text-[8px] font-mono text-slate-500 ml-auto shrink-0">
+                          <Typography
+                            sx={{
+                              fontSize: 7,
+                              fontFamily: "'JetBrains Mono Variable', monospace",
+                              color: "text.disabled",
+                              ml: "auto",
+                              flexShrink: 0,
+                            }}
+                          >
                             {(v as any).score}%
-                          </span>
+                          </Typography>
                         )}
-                      </div>
+                      </Box>
                       {text && (
-                        <p className="text-[9px] text-slate-500 leading-relaxed mt-0.5 line-clamp-2 text-left">
+                        <Typography
+                          sx={{
+                            fontSize: 8,
+                            color: "text.secondary",
+                            lineHeight: 1.5,
+                            mt: 0.25,
+                            textAlign: "left",
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                            display: "-webkit-box",
+                            WebkitLineClamp: 2,
+                            WebkitBoxOrient: "vertical",
+                          }}
+                        >
                           &ldquo;{text}&rdquo;
-                        </p>
+                        </Typography>
                       )}
-                    </button>
+                    </Button>
                   );
                 })}
-              </div>
+              </Box>
             )}
 
-            {/* Related References */}
             {relatedReferences.length > 0 && selectedSearchRef && (
-              <div className="mt-2 border-t border-white/[0.04] pt-2">
-                <div className="flex items-center gap-1.5 mb-1.5">
-                  <div className="w-0.5 h-3 rounded-full bg-gradient-to-b from-[#4F6BFF] to-[#4F6BFF]/30" />
-                  <span className="text-[9px] font-bold uppercase tracking-widest text-slate-500">Related</span>
-                </div>
-                <div className="space-y-1">
+              <Box sx={{ mt: 1, borderTop: "1px solid rgba(255,255,255,0.04)", pt: 1 }}>
+                <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, mb: 0.75 }}>
+                  <Box
+                    sx={{
+                      width: 2,
+                      height: 12,
+                      borderRadius: 1,
+                      background: "linear-gradient(180deg, #4F6BFF 0%, rgba(79,107,255,0.3) 100%)",
+                    }}
+                  />
+                  <CinemaLabel>Related</CinemaLabel>
+                </Box>
+                <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}>
                   {relatedReferences.slice(0, 5).map((r) => {
-                    const ref = r.reference || r.ref || '';
+                    const ref = r.reference || r.ref || "";
                     if (ref === selectedSearchRef) return null;
                     return (
-                      <button
+                      <Button
                         key={ref}
+                        fullWidth
                         onClick={async () => {
                           setSelectedSearchRef(ref);
                           await searchPreview(ref);
                         }}
-                        className="w-full text-left p-1.5 rounded bg-indigo-500/5 border border-indigo-500/10 hover:bg-indigo-500/10 transition-colors"
+                        sx={{
+                          justifyContent: "flex-start",
+                          textAlign: "left",
+                          p: 0.75,
+                          borderRadius: 0.5,
+                          textTransform: "none",
+                          bgcolor: "rgba(99,102,241,0.05)",
+                          border: "1px solid rgba(99,102,241,0.1)",
+                          "&:hover": { bgcolor: "rgba(99,102,241,0.1)" },
+                        }}
                       >
-                        <span className="text-[9px] font-mono text-indigo-300">{ref}</span>
+                        <Typography
+                          sx={{
+                            fontSize: 8,
+                            fontFamily: "'JetBrains Mono Variable', monospace",
+                            color: "#A5B4FC",
+                          }}
+                        >
+                          {ref}
+                        </Typography>
                         {r.text && (
-                          <p className="text-[8px] text-slate-500 leading-relaxed mt-0.5 line-clamp-1">&ldquo;{r.text}&rdquo;</p>
+                          <Typography
+                            sx={{
+                              fontSize: 7,
+                              color: "text.secondary",
+                              lineHeight: 1.5,
+                              mt: 0.25,
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                              whiteSpace: "nowrap",
+                            }}
+                          >
+                            &ldquo;{r.text}&rdquo;
+                          </Typography>
                         )}
-                      </button>
+                      </Button>
                     );
                   })}
-                </div>
-              </div>
+                </Box>
+              </Box>
             )}
+          </GlassPaper>
+        </Box>
 
-            <p className="text-[9px] text-slate-600 mt-2 font-sans leading-relaxed">
-              Search by quote, topic, or reference — pick the right match from the results, then see related verses.
-            </p>
-          </div>
-        </section>
-
-        {/* RIGHT PANEL */}
-        <section className="col-span-12 md:col-span-8 lg:col-span-9">
-
+        {/* RIGHT */}
+        <Box sx={{ gridColumn: { xs: "span 12", md: "span 8", lg: "span 9" } }}>
           {mode === "Scripture" ? (
-            <div className="flex flex-col lg:flex-row gap-4 md:gap-6">
+            <Box
+              sx={{
+                display: "flex",
+                flexDirection: { xs: "column", lg: "row" },
+                gap: { xs: 2, md: 3 },
+              }}
+            >
+              <Box
+                sx={{
+                  flex: 1,
+                  display: "grid",
+                  gridTemplateColumns: { xs: "1fr", md: "repeat(2, 1fr)" },
+                  gap: { xs: 2, md: 3 },
+                  minWidth: 0,
+                }}
+              >
+                {/* PREVIEW */}
+                <GlassPaper
+                  sx={{
+                    borderRadius: 4,
+                    display: "flex",
+                    flexDirection: "column",
+                    "&:hover": { borderColor: "rgba(201,151,58,0.3)" },
+                  }}
+                >
+                  <VersePanel
+                    kind="preview"
+                    verse={chapterVerses[previewIdx] || displayVerse}
+                    nextRef={
+                      chapterVerses.length > 0 && previewIdx + 1 < chapterVerses.length
+                        ? chapterVerses[previewIdx + 1].reference
+                        : queue.length > 0
+                          ? queue[0].reference
+                          : null
+                    }
+                    translation={TRANSLATIONS[translation]}
+                    actions={
+                      <>
+                        <Button
+                          size="small"
+                          onClick={() => navigateVerse("prev")}
+                          sx={{
+                            fontSize: 9,
+                            color: "#94A3B8",
+                            bgcolor: "rgba(30,41,59,0.5)",
+                            border: "1px solid rgba(51,65,85,0.5)",
+                            "&:hover": { color: "#fff" },
+                          }}
+                        >
+                          &larr; Prev
+                        </Button>
+                        <Button
+                          size="small"
+                          onClick={() => {
+                            const v = chapterVerses[previewIdx] || displayVerse;
+                            if (v) addToQueue(v);
+                            navigateVerse("next");
+                          }}
+                          sx={{
+                            fontSize: 9,
+                            color: "#94A3B8",
+                            bgcolor: "rgba(30,41,59,0.5)",
+                            border: "1px solid rgba(51,65,85,0.5)",
+                            "&:hover": { color: "#fff" },
+                          }}
+                        >
+                          Next &rarr;
+                        </Button>
+                        <Divider
+                          orientation="vertical"
+                          flexItem
+                          sx={{ borderColor: "rgba(255,255,255,0.1)" }}
+                        />
+                        <Button
+                          size="small"
+                          variant="contained"
+                          disabled={!displayVerse}
+                          onClick={handlePushLive}
+                          sx={{ fontSize: 9 }}
+                        >
+                          Transmit Live &rarr;
+                        </Button>
+                      </>
+                    }
+                  />
+                </GlassPaper>
 
-              <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6 min-w-0">
-
-              {/* PREVIEW PANEL */}
-              <div className="glass-premium rounded-2xl flex flex-col transition-all duration-300 hover:border-[#C9973A]/30"
-                style={{ boxShadow: '0 8px 32px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.03)' }}>
-                <VersePanel
-                  kind="preview"
-                  verse={chapterVerses[previewIdx] || displayVerse}
-                  nextRef={
-                    chapterVerses.length > 0 && previewIdx + 1 < chapterVerses.length
-                      ? chapterVerses[previewIdx + 1].reference
-                      : queue.length > 0
-                        ? queue[0].reference
-                        : null
-                  }
-                  translation={TRANSLATIONS[translation]}
-                  actions={
-                    <>
-                      <button
-                        onClick={() => navigateVerse('prev')}
-                        className="text-[10px] text-slate-400 hover:text-white px-2.5 py-1 rounded-lg bg-slate-800/50 border border-slate-700/50 transition"
-                      >
-                        &larr; Prev
-                      </button>
-                      <button
-                        onClick={() => {
-                          const v = chapterVerses[previewIdx] || displayVerse;
-                          if (v) addToQueue(v);
-                          navigateVerse('next');
+                {/* LIVE */}
+                <Paper
+                  sx={{
+                    borderRadius: 4,
+                    display: "flex",
+                    flexDirection: "column",
+                    bgcolor: "transparent",
+                    border: "2px solid rgba(239,68,68,0.25)",
+                    boxShadow: currentLiveVerse
+                      ? "0 8px 32px rgba(0,0,0,0.45), 0 0 24px rgba(239,68,68,0.08)"
+                      : "0 8px 32px rgba(0,0,0,0.45)",
+                  }}
+                >
+                  <Box
+                    sx={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      px: { xs: 2, md: 2.5 },
+                      pt: 2,
+                      pb: 1,
+                      flexShrink: 0,
+                    }}
+                  >
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                      <Box
+                        sx={{
+                          width: 6,
+                          height: 6,
+                          borderRadius: "50%",
+                          bgcolor: currentLiveVerse ? "#EF4444" : "#475569",
+                          animation: currentLiveVerse ? "ping 1s infinite" : "none",
+                          filter: currentLiveVerse
+                            ? "drop-shadow(0 0 8px rgba(239,68,68,0.8))"
+                            : "none",
                         }}
-                        className="text-[10px] text-slate-400 hover:text-white px-2.5 py-1 rounded-lg bg-slate-800/50 border border-slate-700/50 transition"
+                      />
+                      <Typography
+                        sx={{
+                          fontSize: 9,
+                          fontWeight: 700,
+                          letterSpacing: "0.1em",
+                          textTransform: "uppercase",
+                          color: "#EF4444",
+                        }}
                       >
-                        Next &rarr;
-                      </button>
-                      <div className="h-4 w-px bg-white/10" />
-                      <button
-                        onClick={handlePushLive}
-                        disabled={!displayVerse}
-                        className="px-3 py-1 text-[10px] font-semibold bg-gradient-to-r from-[#C9973A] to-[#FFD580] text-[#080D1C] rounded-lg shadow-md shadow-[#C9973A]/20 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-30 disabled:pointer-events-none transition-all duration-200"
+                        Live Feed
+                      </Typography>
+                    </Box>
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                      {currentLiveVerse && (
+                        <Button
+                          size="small"
+                          onClick={clearProjection}
+                          sx={{
+                            fontSize: 9,
+                            color: "#94A3B8",
+                            bgcolor: "rgba(30,41,59,0.5)",
+                            border: "1px solid rgba(51,65,85,0.5)",
+                            "&:hover": { color: "#fff" },
+                          }}
+                        >
+                          Clear
+                        </Button>
+                      )}
+                      <Button
+                        size="small"
+                        onClick={openProjector}
+                        sx={{
+                          fontSize: 9,
+                          color: "#94A3B8",
+                          bgcolor: "rgba(30,41,59,0.5)",
+                          border: "1px solid rgba(51,65,85,0.5)",
+                          "&:hover": { color: "#fff" },
+                          gap: 0.5,
+                        }}
                       >
-                        Transmit Live &rarr;
-                      </button>
-                    </>
-                  }
-                />
-              </div>
+                        Project
+                        <Typography sx={{ fontSize: 7 }} component="span">
+                          ↗
+                        </Typography>
+                      </Button>
+                    </Box>
+                  </Box>
+                  <VersePanel
+                    kind="live"
+                    verse={currentLiveVerse}
+                    translation={TRANSLATIONS[translation]}
+                  />
+                  {currentLiveVerse && (
+                    <Box
+                      sx={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        gap: 1,
+                        fontSize: 9,
+                        color: "#EF4444",
+                        pb: 2,
+                        flexShrink: 0,
+                      }}
+                    >
+                      <Box
+                        sx={{
+                          width: 6,
+                          height: 6,
+                          borderRadius: "50%",
+                          bgcolor: "#EF4444",
+                          animation: "pulse 2s infinite",
+                        }}
+                      />
+                      <span>LIVE</span>
+                      <Typography color="text.disabled" component="span">
+                        ·
+                      </Typography>
+                      <Typography color="text.secondary" component="span">
+                        {formatSessionTime()}
+                      </Typography>
+                    </Box>
+                  )}
+                  {!currentLiveVerse && queue.length > 0 && (
+                    <Box
+                      sx={{
+                        textAlign: "center",
+                        fontSize: 9,
+                        color: "text.secondary",
+                        pb: 2,
+                        flexShrink: 0,
+                      }}
+                    >
+                      <Typography color="#FFD580" component="span">
+                        ●
+                      </Typography>
+                      <Typography
+                        sx={{ ml: 0.5, fontSize: 9, color: "text.secondary" }}
+                        component="span"
+                      >
+                        {queue.length} verse{queue.length > 1 ? "s" : ""} in queue
+                      </Typography>
+                    </Box>
+                  )}
+                </Paper>
+              </Box>
 
-              {/* LIVE PANEL */}
-              <div className="glass-premium rounded-2xl flex flex-col transition-all duration-300"
-                style={{
-                  border: '2px solid rgba(239, 68, 68, 0.25)',
-                  boxShadow: currentLiveVerse
-                    ? '0 8px 32px rgba(0,0,0,0.45), 0 0 24px rgba(239, 68, 68, 0.08), inset 0 1px 0 rgba(255,255,255,0.03)'
-                    : '0 8px 32px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.03)',
-                }}>
-                <div className="flex items-center justify-between px-4 md:px-5 pt-4 pb-2 shrink-0">
-                  <div className="flex items-center gap-2">
-                    <span className={`h-1.5 w-1.5 rounded-full ${currentLiveVerse ? 'bg-[#EF4444] animate-ping' : 'bg-slate-600'}`}
-                      style={currentLiveVerse ? { filter: 'drop-shadow(0 0 8px rgba(239, 68, 68, 0.8))' } : {}} />
-                    <span className="text-[10px] font-bold tracking-widest uppercase text-[#EF4444]">Live Feed</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {currentLiveVerse && (
-                      <button onClick={clearProjection} className="text-[10px] text-slate-400 hover:text-white px-2.5 py-1 rounded-lg bg-slate-800/50 border border-slate-700/50 transition">Clear</button>
-                    )}
-                    <button onClick={openProjector} className="text-[10px] text-slate-400 hover:text-white px-2.5 py-1 rounded-lg bg-slate-800/50 border border-slate-700/50 transition flex items-center gap-1"><span>Project</span><span className="text-[8px]">↗</span></button>
-                  </div>
-                </div>
-                <VersePanel
-                  kind="live"
-                  verse={currentLiveVerse}
-                  translation={TRANSLATIONS[translation]}
-                />
-                {currentLiveVerse && (
-                  <div className="flex items-center justify-center gap-2 text-[10px] text-[#EF4444] pb-4 shrink-0">
-                    <span className="h-1.5 w-1.5 rounded-full bg-[#EF4444] animate-pulse" />
-                    <span>LIVE</span>
-                    <span className="text-slate-500">·</span>
-                    <span className="text-slate-400">{formatSessionTime()}</span>
-                  </div>
-                )}
-                {!currentLiveVerse && queue.length > 0 && (
-                  <div className="text-center text-[10px] text-slate-400 pb-4 shrink-0">
-                    <span className="text-[#FFD580]">●</span>
-                    <span className="ml-1">{queue.length} verse{queue.length > 1 ? 's' : ''} in queue</span>
-                  </div>
-                )}
-              </div>
-
-              </div>
-
-              {/* QUEUE BOARD — hidden on mobile, shown as drawer */}
-              <div className="hidden lg:flex glass-premium w-52 shrink-0 relative rounded-2xl flex-col overflow-hidden">
-                <div className="flex items-center justify-between px-5 pt-4 pb-2 shrink-0">
-                  <div className="flex items-center gap-2">
-                    <div className="w-1 h-3 rounded-full bg-gradient-to-b from-[#FFD580] to-[#C9973A]/30" />
-                    <span className="text-[10px] font-bold tracking-widest uppercase text-[#FFD580]">Queue</span>
+              {/* QUEUE — desktop */}
+              <GlassPaper
+                sx={{
+                  display: { xs: "none", lg: "flex" },
+                  width: 208,
+                  flexShrink: 0,
+                  borderRadius: 4,
+                  flexDirection: "column",
+                  overflow: "hidden",
+                }}
+              >
+                <Box
+                  sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    px: 2.5,
+                    pt: 2,
+                    pb: 1,
+                    flexShrink: 0,
+                  }}
+                >
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                    <Box
+                      sx={{
+                        width: 4,
+                        height: 12,
+                        borderRadius: 1,
+                        background:
+                          "linear-gradient(180deg, #FFD580 0%, rgba(201,151,58,0.3) 100%)",
+                      }}
+                    />
+                    <Typography
+                      sx={{
+                        fontSize: 9,
+                        fontWeight: 700,
+                        letterSpacing: "0.1em",
+                        textTransform: "uppercase",
+                        color: "#FFD580",
+                      }}
+                    >
+                      Queue
+                    </Typography>
                     {queue.length > 0 && (
-                      <span className="text-[10px] font-mono text-slate-400 bg-slate-800/50 px-1.5 py-0.5 rounded">
-                        {queue.length}
-                      </span>
+                      <Chip
+                        label={queue.length}
+                        size="small"
+                        sx={{
+                          height: 18,
+                          fontSize: 9,
+                          fontFamily: "'JetBrains Mono Variable', monospace",
+                          bgcolor: "rgba(30,41,59,0.5)",
+                          color: "#94A3B8",
+                        }}
+                      />
                     )}
-                  </div>
-                </div>
-
-                <div className="flex-1 overflow-y-auto px-5 pb-4 space-y-2">
+                  </Box>
+                </Box>
+                <Box
+                  sx={{
+                    flex: 1,
+                    overflowY: "auto",
+                    px: 2.5,
+                    pb: 2,
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 1,
+                  }}
+                >
                   {queue.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center h-full text-center">
-                      <p className="text-[11px] text-slate-500 italic">Queue is empty</p>
-                      <p className="text-[9px] text-slate-600 mt-1">Stage verses from Preview to build your queue</p>
-                    </div>
+                    <Box
+                      sx={{
+                        display: "flex",
+                        flexDirection: "column",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        height: "100%",
+                        textAlign: "center",
+                      }}
+                    >
+                      <Typography
+                        sx={{ fontSize: 10, color: "text.disabled", fontStyle: "italic" }}
+                      >
+                        Queue is empty
+                      </Typography>
+                      <Typography sx={{ fontSize: 8, color: "#475569", mt: 0.5 }}>
+                        Stage verses from Preview
+                      </Typography>
+                    </Box>
                   ) : (
                     queue.map((v, i) => (
-                      <div key={`${v.reference || v.ref}-${i}`} className="flex items-start gap-3 p-2.5 rounded-lg bg-[#1A2035]/40 border border-[#2D3A5C]/20">
-                        <div className="flex-1 min-w-0">
-                          <span className="text-[10px] font-semibold text-[#C9973A] block truncate">
+                      <Paper
+                        key={`${v.reference || v.ref}-${i}`}
+                        variant="outlined"
+                        sx={{
+                          display: "flex",
+                          alignItems: "flex-start",
+                          gap: 1.5,
+                          p: 1.25,
+                          borderRadius: 1.5,
+                          bgcolor: "rgba(26,32,53,0.4)",
+                          borderColor: "rgba(45,58,92,0.2)",
+                        }}
+                      >
+                        <Box sx={{ flex: 1, minWidth: 0 }}>
+                          <Typography
+                            sx={{
+                              fontSize: 9,
+                              fontWeight: 600,
+                              color: "#C9973A",
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                              whiteSpace: "nowrap",
+                            }}
+                          >
                             {v.reference || v.ref}
-                          </span>
-                          <p className="text-[10px] text-slate-400 leading-relaxed mt-0.5 line-clamp-2">
+                          </Typography>
+                          <Typography
+                            sx={{
+                              fontSize: 9,
+                              color: "text.secondary",
+                              lineHeight: 1.5,
+                              mt: 0.25,
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                              display: "-webkit-box",
+                              WebkitLineClamp: 2,
+                              WebkitBoxOrient: "vertical",
+                            }}
+                          >
                             {v.text}
-                          </p>
-                        </div>
-                        <div className="flex items-center gap-1 shrink-0 pt-0.5">
-                          <button
+                          </Typography>
+                        </Box>
+                        <Box
+                          sx={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 0.5,
+                            flexShrink: 0,
+                            pt: 0.25,
+                          }}
+                        >
+                          <Button
+                            size="small"
                             onClick={() => {
                               projectVerse(v);
                               removeFromQueue(i);
                             }}
-                            className="px-2 py-1 text-[9px] font-semibold bg-gradient-to-r from-[#C9973A] to-[#FFD580] text-[#080D1C] rounded shadow-md shadow-[#C9973A]/20 hover:scale-[1.02] active:scale-[0.98] transition-all duration-200"
+                            sx={{ px: 1, py: 0.5, fontSize: 8, minWidth: 0 }}
                           >
                             Live
-                          </button>
-                          <button
+                          </Button>
+                          <IconButton
+                            size="small"
                             onClick={() => removeFromQueue(i)}
-                            className="px-1.5 py-1 text-[9px] text-slate-500 hover:text-white bg-slate-800/50 border border-slate-700/50 rounded transition"
+                            sx={{
+                              fontSize: 8,
+                              color: "#64748B",
+                              bgcolor: "rgba(30,41,59,0.5)",
+                              border: "1px solid rgba(51,65,85,0.5)",
+                              borderRadius: 1,
+                              p: 0.5,
+                              "&:hover": { color: "#fff" },
+                            }}
                           >
                             &times;
-                          </button>
-                        </div>
-                      </div>
+                          </IconButton>
+                        </Box>
+                      </Paper>
                     ))
                   )}
-                </div>
-
+                </Box>
                 {queue.length > 0 && (
-                  <div className="px-5 pb-4 shrink-0">
-                    <button
+                  <Box sx={{ px: 2.5, pb: 2, flexShrink: 0 }}>
+                    <Button
+                      fullWidth
+                      variant="contained"
                       onClick={() => {
                         projectVerse(queue[0]);
                         removeFromQueue(0);
                       }}
-                      className="w-full py-2 text-[10px] font-semibold bg-gradient-to-r from-[#C9973A] to-[#FFD580] text-[#080D1C] rounded-lg shadow-md shadow-[#C9973A]/20 hover:scale-[1.02] active:scale-[0.98] transition-all duration-200"
+                      sx={{ py: 1, fontSize: 9 }}
                     >
                       Project Next &rarr;
-                    </button>
-                  </div>
+                    </Button>
+                  </Box>
                 )}
-              </div>
-
-            </div>
+              </GlassPaper>
+            </Box>
           ) : mode === "Music" ? (
-            <div className="glass-premium h-full rounded-2xl p-8 flex flex-col items-center justify-center text-center">
-              <div className="text-5xl mb-4 opacity-20">🎵</div>
-              <h2 className="text-lg font-semibold text-slate-300 mb-2 tracking-wide">Music Mode</h2>
-              <p className="text-xs text-slate-500 max-w-md leading-relaxed">
-                Queue and display song lyrics, chord charts, and worship media.
-                Connect your CCLI or song library to get started.
-              </p>
-              <div className="mt-6 flex items-center gap-2 text-[10px] text-slate-600 font-mono">
-                <span className="h-1.5 w-1.5 rounded-full bg-slate-600" />
-                Coming Soon
-              </div>
-            </div>
+            <GlassPaper
+              sx={{
+                height: "100%",
+                borderRadius: 4,
+                p: 4,
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "center",
+                textAlign: "center",
+              }}
+            >
+              <Typography sx={{ fontSize: 48, mb: 2, opacity: 0.2 }}>🎵</Typography>
+              <Typography sx={{ fontSize: 18, fontWeight: 600, color: "#CBD5E1", mb: 1 }}>
+                Music Mode
+              </Typography>
+              <Typography
+                sx={{ fontSize: 11, color: "text.secondary", maxWidth: 400, lineHeight: 1.6 }}
+              >
+                Queue and display song lyrics, chord charts, and worship media. Connect your CCLI or
+                song library to get started.
+              </Typography>
+              <Chip
+                label="Coming Soon"
+                size="small"
+                sx={{
+                  mt: 3,
+                  fontSize: 9,
+                  fontFamily: "'JetBrains Mono Variable', monospace",
+                  bgcolor: "transparent",
+                  color: "#475569",
+                }}
+              />
+            </GlassPaper>
           ) : (
-            <div className="glass-premium h-full rounded-2xl p-8 flex flex-col items-center justify-center text-center">
-              <div className="text-5xl mb-4 opacity-20">📺</div>
-              <h2 className="text-lg font-semibold text-slate-300 mb-2 tracking-wide">Media Mode</h2>
-              <p className="text-xs text-slate-500 max-w-md leading-relaxed">
-                Play video backgrounds, sermon slides, and presentation media
-                alongside your scripture projection feed.
-              </p>
-              <div className="mt-6 flex items-center gap-2 text-[10px] text-slate-600 font-mono">
-                <span className="h-1.5 w-1.5 rounded-full bg-slate-600" />
-                Coming Soon
-              </div>
-            </div>
+            <GlassPaper
+              sx={{
+                height: "100%",
+                borderRadius: 4,
+                p: 4,
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "center",
+                textAlign: "center",
+              }}
+            >
+              <Typography sx={{ fontSize: 48, mb: 2, opacity: 0.2 }}>📺</Typography>
+              <Typography sx={{ fontSize: 18, fontWeight: 600, color: "#CBD5E1", mb: 1 }}>
+                Media Mode
+              </Typography>
+              <Typography
+                sx={{ fontSize: 11, color: "text.secondary", maxWidth: 400, lineHeight: 1.6 }}
+              >
+                Play video backgrounds, sermon slides, and presentation media alongside your
+                scripture projection feed.
+              </Typography>
+              <Chip
+                label="Coming Soon"
+                size="small"
+                sx={{
+                  mt: 3,
+                  fontSize: 9,
+                  fontFamily: "'JetBrains Mono Variable', monospace",
+                  bgcolor: "transparent",
+                  color: "#475569",
+                }}
+              />
+            </GlassPaper>
           )}
+        </Box>
+      </Box>
 
-        </section>
-      </main>
-      {/* Mobile Queue Drawer */}
-      {queueDrawerOpen && (
-        <div className="fixed inset-0 z-50 lg:hidden">
-          <div className="absolute inset-0 bg-black/60" onClick={() => setQueueDrawerOpen(false)} />
-          <div className="absolute right-0 top-0 bottom-0 w-72 glass-premium rounded-l-2xl flex flex-col overflow-hidden animate-slide-up">
-            <div className="flex items-center justify-between px-5 pt-4 pb-2 shrink-0">
-              <div className="flex items-center gap-2">
-                <div className="w-1 h-3 rounded-full bg-gradient-to-b from-[#FFD580] to-[#C9973A]/30" />
-                <span className="text-[10px] font-bold tracking-widest uppercase text-[#FFD580]">Queue</span>
-                {queue.length > 0 && (
-                  <span className="text-[10px] font-mono text-slate-400 bg-slate-800/50 px-1.5 py-0.5 rounded">
-                    {queue.length}
-                  </span>
-                )}
-              </div>
-              <button onClick={() => setQueueDrawerOpen(false)} className="text-[10px] text-slate-400 hover:text-white px-2 py-1 rounded bg-slate-800/50 border border-slate-700/50 transition">Close</button>
-            </div>
-            <div className="flex-1 overflow-y-auto px-5 pb-4 space-y-2">
-              {queue.length === 0 ? (
-                <div className="flex flex-col items-center justify-center h-full text-center">
-                  <p className="text-[11px] text-slate-500 italic">Queue is empty</p>
-                </div>
-              ) : (
-                queue.map((v, i) => (
-                  <div key={`${v.reference || v.ref}-${i}`} className="flex items-start gap-3 p-2.5 rounded-lg bg-[#1A2035]/40 border border-[#2D3A5C]/20">
-                    <div className="flex-1 min-w-0">
-                      <span className="text-[10px] font-semibold text-[#C9973A] block truncate">
-                        {v.reference || v.ref}
-                      </span>
-                      <p className="text-[10px] text-slate-400 leading-relaxed mt-0.5 line-clamp-2">{v.text}</p>
-                    </div>
-                    <div className="flex items-center gap-1 shrink-0 pt-0.5">
-                      <button onClick={() => { projectVerse(v); removeFromQueue(i); setQueueDrawerOpen(false); }}
-                        className="px-2 py-1 text-[9px] font-semibold bg-gradient-to-r from-[#C9973A] to-[#FFD580] text-[#080D1C] rounded shadow-md shadow-[#C9973A]/20">Live</button>
-                      <button onClick={() => removeFromQueue(i)}
-                        className="px-1.5 py-1 text-[9px] text-slate-500 hover:text-white bg-slate-800/50 border border-slate-700/50 rounded">&times;</button>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
+      {/* Queue Drawer — mobile */}
+      <Drawer
+        anchor="right"
+        open={queueDrawerOpen}
+        onClose={() => setQueueDrawerOpen(false)}
+        PaperProps={{
+          sx: {
+            width: 288,
+            bgcolor: "rgba(13,20,38,0.96)",
+            backdropFilter: "blur(16px)",
+            borderLeft: "1px solid rgba(255,255,255,0.05)",
+          },
+        }}
+      >
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            px: 2.5,
+            pt: 2,
+            pb: 1,
+            flexShrink: 0,
+          }}
+        >
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+            <Box
+              sx={{
+                width: 4,
+                height: 12,
+                borderRadius: 1,
+                background: "linear-gradient(180deg, #FFD580 0%, rgba(201,151,58,0.3) 100%)",
+              }}
+            />
+            <Typography
+              sx={{
+                fontSize: 9,
+                fontWeight: 700,
+                letterSpacing: "0.1em",
+                textTransform: "uppercase",
+                color: "#FFD580",
+              }}
+            >
+              Queue
+            </Typography>
             {queue.length > 0 && (
-              <div className="px-5 pb-4 shrink-0">
-                <button onClick={() => { projectVerse(queue[0]); removeFromQueue(0); setQueueDrawerOpen(false); }}
-                  className="w-full py-2 text-[10px] font-semibold bg-gradient-to-r from-[#C9973A] to-[#FFD580] text-[#080D1C] rounded-lg">Project Next &rarr;</button>
-              </div>
+              <Chip
+                label={queue.length}
+                size="small"
+                sx={{
+                  height: 18,
+                  fontSize: 9,
+                  fontFamily: "'JetBrains Mono Variable', monospace",
+                  bgcolor: "rgba(30,41,59,0.5)",
+                  color: "#94A3B8",
+                }}
+              />
             )}
-          </div>
-        </div>
-      )}
-    </div>
+          </Box>
+          <IconButton
+            size="small"
+            onClick={() => setQueueDrawerOpen(false)}
+            sx={{
+              fontSize: 9,
+              color: "#94A3B8",
+              bgcolor: "rgba(30,41,59,0.5)",
+              border: "1px solid rgba(51,65,85,0.5)",
+              borderRadius: 1,
+              p: 0.5,
+              "&:hover": { color: "#fff" },
+            }}
+          >
+            Close
+          </IconButton>
+        </Box>
+        <Box
+          sx={{
+            flex: 1,
+            overflowY: "auto",
+            px: 2.5,
+            pb: 2,
+            display: "flex",
+            flexDirection: "column",
+            gap: 1,
+          }}
+        >
+          {queue.length === 0 ? (
+            <Box
+              sx={{
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "center",
+                height: "100%",
+                textAlign: "center",
+              }}
+            >
+              <Typography sx={{ fontSize: 10, color: "text.disabled", fontStyle: "italic" }}>
+                Queue is empty
+              </Typography>
+            </Box>
+          ) : (
+            queue.map((v, i) => (
+              <Paper
+                key={`${v.reference || v.ref}-${i}`}
+                variant="outlined"
+                sx={{
+                  display: "flex",
+                  alignItems: "flex-start",
+                  gap: 1.5,
+                  p: 1.25,
+                  borderRadius: 1.5,
+                  bgcolor: "rgba(26,32,53,0.4)",
+                  borderColor: "rgba(45,58,92,0.2)",
+                }}
+              >
+                <Box sx={{ flex: 1, minWidth: 0 }}>
+                  <Typography
+                    sx={{
+                      fontSize: 9,
+                      fontWeight: 600,
+                      color: "#C9973A",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {v.reference || v.ref}
+                  </Typography>
+                  <Typography
+                    sx={{
+                      fontSize: 9,
+                      color: "text.secondary",
+                      lineHeight: 1.5,
+                      mt: 0.25,
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      display: "-webkit-box",
+                      WebkitLineClamp: 2,
+                      WebkitBoxOrient: "vertical",
+                    }}
+                  >
+                    {v.text}
+                  </Typography>
+                </Box>
+                <Box
+                  sx={{ display: "flex", alignItems: "center", gap: 0.5, flexShrink: 0, pt: 0.25 }}
+                >
+                  <Button
+                    size="small"
+                    onClick={() => {
+                      projectVerse(v);
+                      removeFromQueue(i);
+                      setQueueDrawerOpen(false);
+                    }}
+                    sx={{ px: 1, py: 0.5, fontSize: 8, minWidth: 0 }}
+                  >
+                    Live
+                  </Button>
+                  <IconButton
+                    size="small"
+                    onClick={() => removeFromQueue(i)}
+                    sx={{
+                      fontSize: 8,
+                      color: "#64748B",
+                      bgcolor: "rgba(30,41,59,0.5)",
+                      border: "1px solid rgba(51,65,85,0.5)",
+                      borderRadius: 1,
+                      p: 0.5,
+                      "&:hover": { color: "#fff" },
+                    }}
+                  >
+                    &times;
+                  </IconButton>
+                </Box>
+              </Paper>
+            ))
+          )}
+        </Box>
+        {queue.length > 0 && (
+          <Box sx={{ px: 2.5, pb: 2, flexShrink: 0 }}>
+            <Button
+              fullWidth
+              variant="contained"
+              onClick={() => {
+                projectVerse(queue[0]);
+                removeFromQueue(0);
+                setQueueDrawerOpen(false);
+              }}
+              sx={{ py: 1, fontSize: 9 }}
+            >
+              Project Next &rarr;
+            </Button>
+          </Box>
+        )}
+      </Drawer>
+    </Box>
   );
 };
+
+// ---------------------------------------------------------------------------
+// Transcript History View
+// ---------------------------------------------------------------------------
+
+function TranscriptHistoryView({
+  history,
+  onSwitchLive,
+}: {
+  history: TranscriptSegment[];
+  onSwitchLive: () => void;
+}) {
+  if (history.length === 0) {
+    return (
+      <Box
+        sx={{
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          height: "100%",
+          color: "text.disabled",
+        }}
+      >
+        <Typography sx={{ fontSize: 10, fontStyle: "italic", color: "text.disabled" }}>
+          No transcript history for today.
+        </Typography>
+        <Button
+          onClick={onSwitchLive}
+          sx={{ mt: 1, fontSize: 9, color: "#C9973A", "&:hover": { color: "#FFD580" } }}
+        >
+          &larr; Back to Live
+        </Button>
+      </Box>
+    );
+  }
+
+  const groups = new Map<string, TranscriptSegment[]>();
+  for (const seg of history) {
+    const d = new Date(seg.timestamp);
+    const key = d.toLocaleDateString("en-US", {
+      weekday: "short",
+      month: "short",
+      day: "numeric",
+      year: d.getFullYear() === new Date().getFullYear() ? undefined : "numeric",
+    });
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key)!.push(seg);
+  }
+
+  const clearHistory = useSoundStore((s) => s.clearHistory);
+
+  return (
+    <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
+      <Box
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          borderBottom: "1px solid rgba(255,255,255,0.04)",
+          pb: 0.75,
+        }}
+      >
+        <Typography
+          sx={{
+            fontSize: 9,
+            color: "text.disabled",
+            fontFamily: "'JetBrains Mono Variable', monospace",
+          }}
+        >
+          {history.length} segment{history.length !== 1 ? "s" : ""}
+        </Typography>
+        <Button
+          onClick={clearHistory}
+          sx={{ fontSize: 8, color: "#475569", "&:hover": { color: "#FB7185" } }}
+        >
+          Clear all
+        </Button>
+      </Box>
+      {[...groups.entries()].map(([label, segments]) => (
+        <Box key={label}>
+          <Typography
+            sx={{
+              fontSize: 9,
+              color: "text.disabled",
+              fontFamily: "'JetBrains Mono Variable', monospace",
+              mb: 0.75,
+              textTransform: "uppercase",
+            }}
+          >
+            {label}
+          </Typography>
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 0.75 }}>
+            {segments.map((seg) => {
+              const t = new Date(seg.timestamp);
+              const time = t.toLocaleTimeString("en-US", {
+                hour: "2-digit",
+                minute: "2-digit",
+                second: "2-digit",
+              });
+              return (
+                <Paper
+                  key={seg.id}
+                  variant="outlined"
+                  sx={{
+                    display: "flex",
+                    alignItems: "flex-start",
+                    gap: 1,
+                    p: 0.75,
+                    borderRadius: 0.5,
+                    bgcolor: "rgba(26,32,53,0.3)",
+                    borderColor: "transparent",
+                    "&:hover": { borderColor: "rgba(255,255,255,0.04)" },
+                  }}
+                >
+                  <Typography
+                    sx={{
+                      fontSize: 8,
+                      color: "#475569",
+                      fontFamily: "'JetBrains Mono Variable', monospace",
+                      mt: 0.25,
+                      flexShrink: 0,
+                      width: 56,
+                      textAlign: "right",
+                    }}
+                  >
+                    {time}
+                  </Typography>
+                  <Typography
+                    sx={{
+                      fontSize: 10,
+                      color: "#CBD5E1",
+                      lineHeight: 1.5,
+                      overflowWrap: "break-word",
+                      minWidth: 0,
+                    }}
+                  >
+                    {seg.text}
+                  </Typography>
+                  {seg.detectedRef && (
+                    <Chip
+                      label={seg.detectedRef}
+                      size="small"
+                      sx={{
+                        flexShrink: 0,
+                        fontSize: 8,
+                        fontFamily: "'JetBrains Mono Variable', monospace",
+                        color: "#34D399",
+                        bgcolor: "rgba(16,185,129,0.1)",
+                        border: "1px solid rgba(16,185,129,0.2)",
+                        mt: 0.25,
+                        height: 18,
+                      }}
+                    />
+                  )}
+                </Paper>
+              );
+            })}
+          </Box>
+        </Box>
+      ))}
+      <Button
+        onClick={onSwitchLive}
+        sx={{
+          fontSize: 9,
+          color: "#C9973A",
+          display: "block",
+          mt: 1,
+          textAlign: "left",
+          "&:hover": { color: "#FFD580" },
+        }}
+      >
+        &larr; Back to Live
+      </Button>
+    </Box>
+  );
+}

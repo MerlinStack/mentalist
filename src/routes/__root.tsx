@@ -8,29 +8,40 @@ import {
   Scripts,
 } from "@tanstack/react-router";
 import { useEffect, type ReactNode } from "react";
+import Box from "@mui/material/Box";
+import Typography from "@mui/material/Typography";
+import Button from "@mui/material/Button";
 
 import appCss from "../index.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 
 function NotFoundComponent() {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background px-4">
-      <div className="max-w-md text-center">
-        <h1 className="text-7xl font-bold text-foreground">404</h1>
-        <h2 className="mt-4 text-xl font-semibold text-foreground">Page not found</h2>
-        <p className="mt-2 text-sm text-muted-foreground">
+    <Box
+      sx={{
+        display: "flex",
+        minHeight: "100vh",
+        alignItems: "center",
+        justifyContent: "center",
+        bgcolor: "#080D1C",
+        px: 2,
+      }}
+    >
+      <Box sx={{ maxWidth: 480, textAlign: "center" }}>
+        <Typography sx={{ fontSize: 72, fontWeight: 700, color: "#F1F5F9" }}>404</Typography>
+        <Typography sx={{ fontSize: 20, fontWeight: 600, color: "#F1F5F9", mt: 2 }}>
+          Page not found
+        </Typography>
+        <Typography sx={{ fontSize: 14, color: "#94A3B8", mt: 1 }}>
           The page you're looking for doesn't exist or has been moved.
-        </p>
-        <div className="mt-6">
-          <Link
-            to="/"
-            className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
-          >
-            Go home
+        </Typography>
+        <Box sx={{ mt: 4 }}>
+          <Link to="/" style={{ textDecoration: "none" }}>
+            <Button variant="contained">Go home</Button>
           </Link>
-        </div>
-      </div>
-    </div>
+        </Box>
+      </Box>
+    </Box>
   );
 }
 
@@ -42,33 +53,47 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
   }, [error]);
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background px-4">
-      <div className="max-w-md text-center">
-        <h1 className="text-xl font-semibold tracking-tight text-foreground">
+    <Box
+      sx={{
+        display: "flex",
+        minHeight: "100vh",
+        alignItems: "center",
+        justifyContent: "center",
+        bgcolor: "#080D1C",
+        px: 2,
+      }}
+    >
+      <Box sx={{ maxWidth: 480, textAlign: "center" }}>
+        <Typography sx={{ fontSize: 20, fontWeight: 600, color: "#F1F5F9" }}>
           This page didn't load
-        </h1>
-        <p className="mt-2 text-sm text-muted-foreground">
+        </Typography>
+        <Typography sx={{ fontSize: 14, color: "#94A3B8", mt: 1 }}>
           Something went wrong on our end. You can try refreshing or head back home.
-        </p>
-        <div className="mt-6 flex flex-wrap justify-center gap-2">
-          <button
+        </Typography>
+        <Box sx={{ mt: 4, display: "flex", flexWrap: "wrap", justifyContent: "center", gap: 1 }}>
+          <Button
+            variant="contained"
             onClick={() => {
               router.invalidate();
               reset();
             }}
-            className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
           >
             Try again
-          </button>
-          <a
+          </Button>
+          <Button
+            variant="outlined"
             href="/"
-            className="inline-flex items-center justify-center rounded-md border border-input bg-background px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent"
+            sx={{
+              borderColor: "rgba(255,255,255,0.10)",
+              color: "#F1F5F9",
+              "&:hover": { borderColor: "rgba(255,255,255,0.20)" },
+            }}
           >
             Go home
-          </a>
-        </div>
-      </div>
-    </div>
+          </Button>
+        </Box>
+      </Box>
+    </Box>
   );
 }
 

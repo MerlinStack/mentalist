@@ -1,3 +1,7 @@
+import Box from "@mui/material/Box";
+import Typography from "@mui/material/Typography";
+import LinearProgress from "@mui/material/LinearProgress";
+import { GlassPaper, CinemaLabel } from "../styled";
 import { useSoundStore } from "../../store/soundStore";
 
 function ModelProgress({
@@ -17,31 +21,54 @@ function ModelProgress({
 
   if (ready) {
     return (
-      <div className="flex items-center gap-2 text-[10px] text-emerald-400 font-mono">
-        <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 glow-green" style={{ filter: 'drop-shadow(0 0 6px rgba(16, 185, 129, 0.6))' }} />
-        {label} <span className="text-emerald-500">✓</span>
-      </div>
+      <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+        <Box
+          sx={{
+            width: 6,
+            height: 6,
+            borderRadius: "50%",
+            bgcolor: "#10B981",
+            filter: "drop-shadow(0 0 6px rgba(16, 185, 129, 0.6))",
+          }}
+        />
+        <Typography sx={{ fontSize: 10, color: "#34D399", fontFamily: '"JetBrains Mono Variable", monospace' }}>
+          {label} <Typography component="span" sx={{ fontSize: 10, color: "#10B981" }}>✓</Typography>
+        </Typography>
+      </Box>
     );
   }
 
-  if (status === "progress" || status === "download" || status === "webgpu-fallback" || status === "fallback") {
+  if (["progress", "download", "webgpu-fallback", "fallback"].includes(status)) {
     return (
-      <div className="space-y-0.5">
-        <div className="flex items-center justify-between text-[9px] font-mono">
-          <span className={status === "fallback" || status === "webgpu-fallback" ? 'text-amber-400' : 'text-amber-400'}>
-            {status === "fallback" || status === "webgpu-fallback" ? '⟳ ' : '⟳ '}{label}
-            {status === "webgpu-fallback" && <span className="text-[8px] text-slate-500 ml-1">CPU</span>}
-            {status === "fallback" && <span className="text-[8px] text-slate-500 ml-1">legacy</span>}
-          </span>
-          <span className="text-slate-400">{pct}%</span>
-        </div>
-        <div className="h-1 rounded-full bg-slate-800/60 overflow-hidden ring-1 ring-white/[0.03]">
-          <div
-            className="h-full rounded-full bg-gradient-to-r from-amber-500 to-emerald-400 transition-all duration-300"
-            style={{ width: `${pct}%` }}
-          />
-        </div>
-      </div>
+      <Box sx={{ width: "100%" }}>
+        <Box sx={{ display: "flex", justifyContent: "space-between", mb: 0.25 }}>
+          <Typography sx={{ fontSize: 9, fontFamily: '"JetBrains Mono Variable", monospace', color: "#FBBF24" }}>
+            {["fallback", "webgpu-fallback"].includes(status) && "⟳ "}{label}
+            {status === "webgpu-fallback" && (
+              <Typography component="span" sx={{ fontSize: 8, color: "#64748B", ml: 0.5 }}>CPU</Typography>
+            )}
+            {status === "fallback" && (
+              <Typography component="span" sx={{ fontSize: 8, color: "#64748B", ml: 0.5 }}>legacy</Typography>
+            )}
+          </Typography>
+          <Typography sx={{ fontSize: 9, fontFamily: '"JetBrains Mono Variable", monospace', color: "#94A3B8" }}>
+            {pct}%
+          </Typography>
+        </Box>
+        <LinearProgress
+          variant="determinate"
+          value={pct}
+          sx={{
+            height: 4,
+            borderRadius: 2,
+            bgcolor: "rgba(30, 41, 59, 0.6)",
+            "& .MuiLinearProgress-bar": {
+              background: "linear-gradient(90deg, #F59E0B, #34D399)",
+              borderRadius: 2,
+            },
+          }}
+        />
+      </Box>
     );
   }
 
@@ -54,39 +81,24 @@ export default function AiStatusChip() {
   const whisperProgress = useSoundStore((s) => s.whisperProgress);
   const semanticProgress = useSoundStore((s) => s.semanticProgress);
 
-  const hasActivity = whisperProgress.status === "progress"
-    || whisperProgress.status === "download"
-    || whisperProgress.status === "webgpu-fallback"
-    || whisperProgress.status === "fallback"
-    || semanticProgress.status === "progress"
-    || semanticProgress.status === "download"
-    || semanticProgress.status === "webgpu-fallback"
-    || semanticProgress.status === "fallback"
-    || !whisperLoaded
-    || !semanticLoaded;
+  const hasActivity =
+    ["progress", "download", "webgpu-fallback", "fallback"].includes(whisperProgress.status) ||
+    ["progress", "download", "webgpu-fallback", "fallback"].includes(semanticProgress.status) ||
+    !whisperLoaded ||
+    !semanticLoaded;
 
   if (!hasActivity) return null;
 
   return (
-    <div className="glass-premium rounded-xl p-3.5 space-y-2.5 min-w-[180px]">
-      <div className="flex items-center gap-2 border-b border-white/[0.04] pb-2">
-        <div className="w-1 h-3 rounded-full bg-gradient-to-b from-[#C9973A] to-[#C9973A]/30" />
-        <span className="text-cinema-label">Model Downloads</span>
-      </div>
-      <ModelProgress
-        label="Whisper"
-        loaded={whisperProgress.loaded}
-        total={whisperProgress.total}
-        status={whisperProgress.status}
-        ready={whisperLoaded}
-      />
-      <ModelProgress
-        label="Embedder"
-        loaded={semanticProgress.loaded}
-        total={semanticProgress.total}
-        status={semanticProgress.status}
-        ready={semanticLoaded}
-      />
-    </div>
+    <GlassPaper sx={{ p: 1.5, minWidth: 180, "& + &": { mt: 1 } }}>
+      <Box sx={{ display: "flex", alignItems: "center", gap: 1, borderBottom: "1px solid rgba(255,255,255,0.04)", pb: 1, mb: 1 }}>
+        <Box sx={{ width: 4, height: 12, borderRadius: 1, background: "linear-gradient(180deg, #C9973A 0%, rgba(201,151,58,0.3) 100%)" }} />
+        <CinemaLabel>Model Downloads</CinemaLabel>
+      </Box>
+      <ModelProgress label="Whisper" loaded={whisperProgress.loaded} total={whisperProgress.total} status={whisperProgress.status} ready={whisperLoaded} />
+      <Box sx={{ mt: 1 }}>
+        <ModelProgress label="Embedder" loaded={semanticProgress.loaded} total={semanticProgress.total} status={semanticProgress.status} ready={semanticLoaded} />
+      </Box>
+    </GlassPaper>
   );
 }

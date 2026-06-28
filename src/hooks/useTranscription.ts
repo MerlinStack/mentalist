@@ -26,7 +26,6 @@ export function useTranscription() {
       if (type === "transcript" || type === "result") {
         const t = text || result?.text || "";
         setTranscript(t);
-        useSoundStore.getState().appendTranscript(t);
       }
 
       if (type === "error") {

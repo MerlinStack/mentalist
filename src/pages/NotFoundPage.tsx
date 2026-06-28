@@ -1,21 +1,23 @@
-import { useNavigate } from '@tanstack/react-router'
-import Button from '../components/shared/Button'
+import { useNavigate } from "@tanstack/react-router";
+import Box from "@mui/material/Box";
+import Typography from "@mui/material/Typography";
+import Button from "@mui/material/Button";
 
 export default function NotFoundPage() {
-  const navigate = useNavigate()
+  const navigate = useNavigate();
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen px-4 py-20 bg-[#0F0F0F]">
-      <div className="text-center max-w-md">
-        <h1 className="text-8xl font-display font-bold text-[#8B5CF6]/30 mb-4">404</h1>
-        <h2 className="text-2xl font-display font-bold text-white mb-2">Page Not Found</h2>
-        <p className="text-text-muted mb-8">
+    <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "100vh", px: 2, py: 10, bgcolor: "#0F0F0F" }}>
+      <Box sx={{ textAlign: "center", maxWidth: 480 }}>
+        <Typography sx={{ fontSize: 80, fontWeight: 700, color: "rgba(139, 92, 246, 0.3)", mb: 2 }}>404</Typography>
+        <Typography sx={{ fontSize: 24, fontWeight: 700, color: "#fff", mb: 1 }}>Page Not Found</Typography>
+        <Typography sx={{ fontSize: 14, color: "#94A3B8", mb: 4 }}>
           The page you're looking for doesn't exist or has been moved.
-        </p>
-        <Button onClick={() => navigate({ to: '/' })}>
+        </Typography>
+        <Button variant="contained" onClick={() => navigate({ to: "/" })}>
           Return Home
         </Button>
-      </div>
-    </div>
-  )
+      </Box>
+    </Box>
+  );
 }

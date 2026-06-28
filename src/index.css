@@ -1,51 +1,9 @@
-@import "tailwindcss" source(none);
 @import "@fontsource/inter/400.css";
 @import "@fontsource/inter/500.css";
 @import "@fontsource/inter/600.css";
 @import "@fontsource-variable/jetbrains-mono";
-@source "../src";
-@import "tw-animate-css";
-
-@custom-variant dark (&:is(.dark *));
-
-@theme inline {
-  --color-brand-bg: #0A0F1E;
-  --color-panel-bg: rgba(26, 32, 53, 0.45);
-  --color-panel-border: rgba(45, 58, 92, 0.5);
-  --color-accent-blue: #4F6BFF;
-  --color-accent-gold: #FFD580;
-
-  --font-sans: "Inter", system-ui, sans-serif;
-  --font-mono: "JetBrains Mono Variable", ui-monospace, monospace;
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --color-surface: var(--surface);
-  --color-surface-2: var(--surface-2);
-  --color-border: var(--border);
-  --color-border-strong: var(--border-strong);
-  --color-muted: var(--muted);
-  --color-muted-foreground: var(--muted-foreground);
-  --color-accent: var(--accent);
-  --color-accent-foreground: var(--accent-foreground);
-  --color-live: var(--live);
-  --color-ok: var(--ok);
-  --color-warn: var(--warn);
-
-  --glow-gold: 0 0 12px rgba(201, 151, 58, 0.35);
-  --glow-red: 0 0 12px rgba(239, 68, 68, 0.35);
-  --glow-green: 0 0 12px rgba(16, 185, 129, 0.35);
-  --glow-blue: 0 0 12px rgba(79, 107, 255, 0.35);
-
-  --glass-bg: rgba(15, 23, 42, 0.65);
-  --glass-border: rgba(255, 255, 255, 0.05);
-  --glass-blur: 16px;
-
-  --cinema-tracking: 0.15em;
-  --cinema-tracking-wide: 0.25em;
-}
 
 :root {
-  /* D'mentalist brand palette — deep navy / gold / live red */
   --obsidian:      #05070f;
   --navy-midnight: #0d1326;
   --navy-deep:     #080D1C;
@@ -62,32 +20,19 @@
   --preview-purple: #6366F1;
   --cf-blue:       #3B82F6;
 
-  --background:        var(--navy-deep);
-  --foreground:        #F1F5F9;
-  --surface:           var(--navy-panel);
-  --surface-2:         var(--navy-card);
-  --border:            rgba(255,255,255,0.06);
-  --border-strong:     rgba(255,255,255,0.10);
-  --muted:             var(--navy-surface);
-  --muted-foreground:  #94A3B8;
-  --accent:            var(--gold);
-  --accent-foreground: #080D1C;
-  --live:              var(--live-red);
-  --ok:                var(--active-green);
-  --warn:              #F59E0B;
-  --radius: 5px;
+  --glass-bg:      rgba(15, 23, 42, 0.65);
+  --glass-border:  rgba(255, 255, 255, 0.05);
+  --glass-blur:    16px;
 }
 
-@layer base {
-  * { border-color: var(--color-border); }
-  html, body, #root { height: 100%; }
-  body {
-    background: linear-gradient(135deg, var(--obsidian) 0%, var(--navy-midnight) 100%);
-    color: var(--color-foreground);
-    font-family: var(--font-sans);
-    font-feature-settings: "cv11", "ss01";
-    -webkit-font-smoothing: antialiased;
-  }
+* { border-color: rgba(255,255,255,0.06); }
+html, body, #root { height: 100%; }
+body {
+  background: linear-gradient(135deg, var(--obsidian) 0%, var(--navy-midnight) 100%);
+  color: #F1F5F9;
+  font-family: "Inter", system-ui, sans-serif;
+  font-feature-settings: "cv11", "ss01";
+  -webkit-font-smoothing: antialiased;
 }
 
 @keyframes pulse-red {
@@ -135,93 +80,6 @@
   to { opacity: 1; transform: scale(1); }
 }
 
-@utility animate-pulse-red {
-  animation: pulse-red 1.2s ease-in-out infinite;
-}
-
-@utility animate-pulse-green {
-  animation: pulse-green 1.2s ease-in-out infinite;
-}
-
-@utility animate-pulse-gold {
-  animation: pulse-gold 2s ease-in-out infinite;
-}
-
-@utility animate-verse-enter {
-  animation: verse-enter 0.4s ease;
-}
-
-@utility animate-slide-up {
-  animation: slide-up 0.5s ease-out;
-}
-
-@utility animate-fade-in {
-  animation: fade-in 0.5s ease-out;
-}
-
-@utility animate-fadeIn {
-  animation: fadeIn 0.4s ease-out;
-}
-
-@utility animate-scaleUp {
-  animation: scaleUp 0.35s ease-out;
-}
-
-@utility pro-console-glass {
-  background: var(--color-panel-bg);
-  backdrop-filter: blur(16px);
-  border: 1px solid var(--color-panel-border);
-  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
-}
-
-@utility glass-premium {
-  background: rgba(13, 20, 38, 0.60);
-  backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.05);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.37), inset 0 1px 0 rgba(255, 255, 255, 0.03);
-}
-
-@utility glow-gold {
-  filter: drop-shadow(0 0 8px rgba(201, 151, 58, 0.5));
-}
-
-@utility glow-red {
-  filter: drop-shadow(0 0 8px rgba(239, 68, 68, 0.5));
-}
-
-@utility glow-green {
-  filter: drop-shadow(0 0 8px rgba(16, 185, 129, 0.5));
-}
-
-@utility glow-blue {
-  filter: drop-shadow(0 0 8px rgba(79, 107, 255, 0.5));
-}
-
-@utility text-cinema-label {
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: 0.15em;
-  text-transform: uppercase;
-  color: #64748B;
-}
-
-@utility text-cinema-verse {
-  font-family: "Georgia", "Times New Roman", serif;
-  font-size: 22px;
-  line-height: 1.8;
-  letter-spacing: 0.01em;
-  color: #F1F5F9;
-  font-style: italic;
-}
-
-@utility text-cinema-reference {
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.25em;
-  text-transform: uppercase;
-  color: #C9973A;
-}
-
 @keyframes glow-pulse-gold {
   0%, 100% { filter: drop-shadow(0 0 6px rgba(201, 151, 58, 0.3)); }
   50%       { filter: drop-shadow(0 0 14px rgba(201, 151, 58, 0.6)); }
@@ -247,27 +105,27 @@
   50%       { filter: drop-shadow(0 0 8px rgba(236, 72, 153, 0.6)) drop-shadow(0 0 16px rgba(16, 185, 129, 0.3)); }
 }
 
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.5; }
+}
+
+@keyframes ping {
+  75%, 100% { transform: scale(2); opacity: 0; }
+}
+
 @keyframes confidence-arc-fill {
   from { stroke-dashoffset: 126; }
   to   { stroke-dashoffset: var(--arc-offset, 126); }
 }
 
-@utility animate-glow-gold {
-  animation: glow-pulse-gold 2s ease-in-out infinite;
+@keyframes float {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33% { transform: translate(30px, -40px) scale(1.05); }
+  66% { transform: translate(-20px, 20px) scale(0.95); }
 }
 
-@utility animate-glow-red {
-  animation: glow-pulse-red 1.5s ease-in-out infinite;
-}
-
-@utility animate-glow-green {
-  animation: glow-pulse-green 2s ease-in-out infinite;
-}
-
-@utility animate-neon-wave {
-  animation: neon-wave-pulse 1.8s ease-in-out infinite;
-}
-
-@utility animate-confidence-arc {
-  animation: confidence-arc-fill 1s ease-out forwards;
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
 }

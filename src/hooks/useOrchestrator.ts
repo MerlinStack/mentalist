@@ -159,6 +159,7 @@ export function useOrchestrator() {
       const deduped = [...new Set(refs)];
 
       if (deduped.length > 0) {
+        store.appendToHistory(text, deduped[0]);
         await fetchVersesAndProject(deduped);
       }
 

@@ -3,6 +3,13 @@ import { persist } from "zustand/middleware";
 import type { Verse } from "../api/bible";
 import type { MatchRange } from "../utils/distance";
 
+export interface TranscriptSegment {
+  id: string;
+  text: string;
+  timestamp: number;
+  detectedRef?: string;
+}
+
 interface SoundState {
   isListening: boolean;
   transcript: string;
@@ -25,6 +32,8 @@ interface SoundState {
   micMuted: boolean;
   streamActive: boolean;
   status: { whisper: 'idle' | 'loading' | 'ready'; miniLM: 'idle' | 'loading' | 'ready' };
+  transcriptHistory: TranscriptSegment[];
+  transcriptView: "live" | "history";
 
   setListening: (b: boolean) => void;
   appendToken: (text: string, isFinal: boolean) => void;
@@ -47,6 +56,9 @@ interface SoundState {
   clearTranscript: () => void;
   resetDetection: () => void;
   reset: () => void;
+  appendToHistory: (text: string, detectedRef?: string) => void;
+  setTranscriptView: (v: "live" | "history") => void;
+  clearHistory: () => void;
 }
 
 const initialData = {
@@ -71,6 +83,8 @@ const initialData = {
   micMuted: false,
   streamActive: false,
   status: { whisper: 'ready' as 'idle' | 'loading' | 'ready', miniLM: 'ready' as 'idle' | 'loading' | 'ready' },
+  transcriptHistory: [],
+  transcriptView: "live",
 };
 
 export const useSoundStore = create<SoundState>()(
@@ -87,7 +101,16 @@ export const useSoundStore = create<SoundState>()(
         set((state) => {
           const lines = (state.transcript + " " + text).split("\n");
           const kept = lines.slice(-300).join("\n");
-          return { transcript: kept, recentChunk: text };
+          const segment: TranscriptSegment = {
+            id: crypto.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+            text,
+            timestamp: Date.now(),
+          };
+          return {
+            transcript: kept,
+            recentChunk: text,
+            transcriptHistory: [...state.transcriptHistory, segment],
+          };
         }),
       setTranscript: (transcript) => set({ transcript }),
       setRecentChunk: (recentChunk) => set({ recentChunk }),
@@ -111,6 +134,18 @@ export const useSoundStore = create<SoundState>()(
       setMicMuted: (micMuted) => set({ micMuted }),
       setStreamActive: (streamActive) => set({ streamActive }),
       clearTranscript: () => set({ transcript: "", recentChunk: "" }),
+      appendToHistory: (text, detectedRef) =>
+        set((state) => {
+          const segment: TranscriptSegment = {
+            id: crypto.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+            text,
+            timestamp: Date.now(),
+            detectedRef,
+          };
+          return { transcriptHistory: [...state.transcriptHistory, segment] };
+        }),
+      setTranscriptView: (transcriptView) => set({ transcriptView }),
+      clearHistory: () => set({ transcriptHistory: [] }),
       resetDetection: () =>
         set({
           detectedVerse: null,
@@ -128,6 +163,7 @@ export const useSoundStore = create<SoundState>()(
         matchRange: state.matchRange,
         aiMode: state.aiMode,
         micMuted: state.micMuted,
+        transcriptHistory: state.transcriptHistory,
       }),
     },
   ),

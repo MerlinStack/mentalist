@@ -1,26 +1,38 @@
-import type { ReactNode } from 'react'
+import type { ReactNode } from "react";
+import Box from "@mui/material/Box";
 
-type Variant = 'default' | 'primary' | 'accent' | 'success' | 'warning' | 'error';
+type Variant = "default" | "primary" | "accent" | "success" | "warning" | "error";
 
 interface BadgeProps {
   children: ReactNode;
   variant?: Variant;
-  className?: string;
 }
 
-export default function Badge({ children, variant = 'default' as Variant, className = '' }: BadgeProps) {
-  const variants: Record<Variant, string> = {
-    default: 'bg-surface-lighter text-text-secondary border border-white/10',
-    primary: 'bg-primary/20 text-primary-light border border-primary/30',
-    accent: 'bg-accent/20 text-accent border border-accent/30',
-    success: 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30',
-    warning: 'bg-amber-500/20 text-amber-400 border border-amber-500/30',
-    error: 'bg-red-500/20 text-red-400 border border-red-500/30',
-  }
+const styles: Record<Variant, Record<string, string>> = {
+  default: { background: "rgba(255,255,255,0.04)", color: "#94A3B8", border: "1px solid rgba(255,255,255,0.10)" },
+  primary: { background: "rgba(201, 151, 58, 0.15)", color: "#FFD580", border: "1px solid rgba(201, 151, 58, 0.30)" },
+  accent: { background: "rgba(201, 151, 58, 0.20)", color: "#C9973A", border: "1px solid rgba(201, 151, 58, 0.30)" },
+  success: { background: "rgba(16, 185, 129, 0.15)", color: "#10B981", border: "1px solid rgba(16, 185, 129, 0.30)" },
+  warning: { background: "rgba(245, 158, 11, 0.15)", color: "#F59E0B", border: "1px solid rgba(245, 158, 11, 0.30)" },
+  error: { background: "rgba(239, 68, 68, 0.15)", color: "#EF4444", border: "1px solid rgba(239, 68, 68, 0.30)" },
+};
 
+export default function Badge({ children, variant = "default" }: BadgeProps) {
   return (
-    <span className={`inline-flex items-center px-2.5 py-0.5 text-xs font-medium rounded-full ${variants[variant]} ${className}`}>
+    <Box
+      component="span"
+      sx={{
+        display: "inline-flex",
+        alignItems: "center",
+        px: 1,
+        py: 0.25,
+        fontSize: 11,
+        fontWeight: 500,
+        borderRadius: 1,
+        ...styles[variant],
+      }}
+    >
       {children}
-    </span>
-  )
+    </Box>
+  );
 }

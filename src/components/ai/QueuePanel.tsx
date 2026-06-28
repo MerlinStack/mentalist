@@ -1,90 +1,111 @@
-import { useProjectionStore } from "../../store/projectionStore";
+import Box from "@mui/material/Box";
+import Typography from "@mui/material/Typography";
+import IconButton from "@mui/material/IconButton";
+import Button from "@mui/material/Button";
+import { GlassPaper, CinemaLabel } from "../styled";
 import type { Verse } from "../../api/bible";
 
-export default function QueuePanel({ onClose }: { onClose: () => void }) {
-  const queue = useProjectionStore((s) => s.queue);
-  const removeFromQueue = useProjectionStore((s) => s.removeFromQueue);
-  const projectNext = useProjectionStore((s) => s.projectNext);
-  const projectVerse = useProjectionStore((s) => s.projectVerse);
+interface QueuePanelProps {
+  queue: Verse[];
+  onProject: (v: Verse) => void;
+  onRemove: (i: number) => void;
+  onProjectNext: () => void;
+}
 
-  const handleRemove = (index: number) => {
-    removeFromQueue(index);
-    if (queue.length <= 1) onClose();
-  };
-
-  const handleProject = (verse: Verse) => {
-    projectVerse(verse);
-    onClose();
-  };
-
+export default function QueuePanel({ queue, onProject, onRemove, onProjectNext }: QueuePanelProps) {
   return (
-    <div style={{
-      position: "absolute", right: 0, top: "calc(100% + 4px)",
-      width: 320, borderRadius: 6, border: "1px solid rgba(255,255,255,0.08)",
-      background: "#0A0F1E", boxShadow: "0 8px 24px rgba(0,0,0,0.5)",
-      zIndex: 50,
-    }}>
-      <div style={{
-        display: "flex", alignItems: "center", justifyContent: "space-between",
-        padding: "8px 12px", borderBottom: "1px solid rgba(255,255,255,0.06)",
-      }}>
-        <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: ".08em", color: "#475569", textTransform: "uppercase" }}>
-          Queue ({queue.length})
-        </span>
-        <button onClick={onClose} style={{ fontSize: 11, color: "#64748B", background: "none", border: "none", cursor: "pointer" }}>
-          Close
-        </button>
-      </div>
+    <GlassPaper sx={{ display: "flex", flexDirection: "column", maxHeight: 320 }}>
+      <Box sx={{ display: "flex", alignItems: "center", gap: 1, borderBottom: "1px solid rgba(255,255,255,0.04)", px: 2.5, py: 1.5 }}>
+        <Box sx={{ width: 4, height: 12, borderRadius: 1, background: "linear-gradient(180deg, #C9973A 0%, rgba(201,151,58,0.3) 100%)" }} />
+        <CinemaLabel>Projection Queue</CinemaLabel>
+        <Typography sx={{ ml: "auto", fontSize: 10, color: "#64748B", fontFamily: '"JetBrains Mono Variable", monospace' }}>
+          {queue.length}
+        </Typography>
+      </Box>
 
-      <div style={{ maxHeight: 288, overflowY: "auto" }}>
+      <Box sx={{ flex: 1, overflow: "auto", px: 2, py: 1 }}>
         {queue.length === 0 ? (
-          <p style={{ padding: "24px 12px", textAlign: "center", fontSize: 11, color: "#475569", margin: 0 }}>Queue is empty</p>
+          <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", py: 4 }}>
+            <Typography sx={{ fontSize: 10, color: "#475569", fontFamily: '"JetBrains Mono Variable", monospace', fontStyle: "italic" }}>
+              Queue is empty
+            </Typography>
+          </Box>
         ) : (
-          queue.map((v, i) => (
-            <div key={`${v.reference || v.ref}-${i}`} style={{
-              display: "flex", gap: 8, padding: "8px 12px",
-              borderBottom: "1px solid rgba(255,255,255,0.04)",
-              transition: "background 0.15s",
-            }}>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <span style={{ display: "block", fontSize: 10, fontWeight: 600, color: "#C9973A", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                  {v.reference || v.ref}
-                </span>
-                <p style={{ fontSize: 11, color: "rgba(241,249,255,0.7)", lineHeight: 1.4, margin: "2px 0 0", overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>
-                  {v.text}
-                </p>
-              </div>
-              <div style={{ display: "flex", gap: 4, flexShrink: 0, paddingTop: 1 }}>
-                {i === 0 && (
-                  <button
-                    onClick={() => handleProject(v)}
-                    style={{ height: 20, borderRadius: 3, background: "#C9973A", padding: "0 6px", fontSize: 9, fontWeight: 600, color: "#080D1C", border: "none", cursor: "pointer" }}
+          queue.map((v, i) => {
+            const ref = v.reference || v.ref || "";
+            return (
+              <Box
+                key={`${ref}-${i}`}
+                sx={{
+                  display: "flex",
+                  alignItems: "flex-start",
+                  gap: 1.5,
+                  p: 1.25,
+                  borderRadius: 1,
+                  bgcolor: "rgba(26, 32, 53, 0.4)",
+                  border: "1px solid rgba(45, 58, 92, 0.2)",
+                  "& + &": { mt: 1 },
+                }}
+              >
+                <Box sx={{ flex: 1, minWidth: 0 }}>
+                  <Typography sx={{ fontSize: 10, fontWeight: 600, color: "#C9973A", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {ref}
+                  </Typography>
+                  <Typography sx={{ fontSize: 10, color: "#94A3B8", mt: 0.25, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {v.text}
+                  </Typography>
+                </Box>
+                <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, flexShrink: 0 }}>
+                  <Button
+                    size="small"
+                    variant="contained"
+                    onClick={() => onProject(v)}
+                    sx={{
+                      minWidth: 0,
+                      px: 1,
+                      py: 0.5,
+                      fontSize: 9,
+                      fontWeight: 600,
+                      background: "linear-gradient(135deg, #C9973A 0%, #FFD580 100%)",
+                      color: "#080D1C",
+                      "&:hover": { background: "linear-gradient(135deg, #D4A44A 0%, #FFE08A 100%)" },
+                    }}
                   >
-                    Go
-                  </button>
-                )}
-                <button
-                  onClick={() => handleRemove(i)}
-                  style={{ height: 20, borderRadius: 3, border: "1px solid rgba(255,255,255,0.08)", padding: "0 6px", fontSize: 9, color: "#64748B", background: "transparent", cursor: "pointer" }}
-                >
-                  &times;
-                </button>
-              </div>
-            </div>
-          ))
+                    Live
+                  </Button>
+                  <IconButton
+                    size="small"
+                    onClick={() => onRemove(i)}
+                    sx={{ color: "#64748B", fontSize: 14, "&:hover": { color: "#fff" } }}
+                  >
+                    ×
+                  </IconButton>
+                </Box>
+              </Box>
+            );
+          })
         )}
-      </div>
+      </Box>
 
       {queue.length > 0 && (
-        <div style={{ display: "flex", gap: 4, padding: "8px 12px", borderTop: "1px solid rgba(255,255,255,0.06)" }}>
-          <button
-            onClick={() => { projectNext(); onClose(); }}
-            style={{ flex: 1, height: 28, borderRadius: 4, background: "#C9973A", fontSize: 10, fontWeight: 600, color: "#080D1C", border: "none", cursor: "pointer" }}
+        <Box sx={{ px: 2.5, pb: 2, flexShrink: 0 }}>
+          <Button
+            fullWidth
+            variant="contained"
+            onClick={onProjectNext}
+            sx={{
+              py: 1,
+              fontSize: 10,
+              fontWeight: 600,
+              background: "linear-gradient(135deg, #C9973A 0%, #FFD580 100%)",
+              color: "#080D1C",
+              "&:hover": { background: "linear-gradient(135deg, #D4A44A 0%, #FFE08A 100%)" },
+            }}
           >
-            Project Next
-          </button>
-        </div>
+            Project Next &rarr;
+          </Button>
+        </Box>
       )}
-    </div>
+    </GlassPaper>
   );
 }
