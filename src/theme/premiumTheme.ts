@@ -4,13 +4,13 @@ export const premiumConsoleTheme = createTheme({
   palette: {
     mode: "dark",
     background: {
-      default: "#05070f",
-      paper: "rgba(11, 15, 28, 0.65)",
+      default: "#000000",
+      paper: "rgba(10, 22, 40, 0.75)",
     },
     primary: {
-      main: "#E2B04E",
-      light: "#FFD580",
-      dark: "#C9973A",
+      main: "#3B82F6",
+      light: "#60A5FA",
+      dark: "#1D4ED8",
     },
     secondary: {
       main: "#10B981",
@@ -23,15 +23,16 @@ export const premiumConsoleTheme = createTheme({
       dark: "#DC2626",
     },
     info: {
-      main: "#3B82F6",
-      light: "#60A5FA",
-      dark: "#2563EB",
+      main: "#6B7280",
+      light: "#9CA3AF",
+      dark: "#4B5563",
     },
     text: {
       primary: "#FFFFFF",
-      secondary: "rgba(255, 255, 255, 0.6)",
+      secondary: "rgba(255, 255, 255, 0.65)",
       disabled: "rgba(255, 255, 255, 0.25)",
     },
+    divider: "rgba(255, 255, 255, 0.06)",
   },
   typography: {
     fontFamily: '"Inter", "system-ui", "-apple-system", sans-serif',
@@ -67,13 +68,13 @@ export const premiumConsoleTheme = createTheme({
             left: 0,
             right: 0,
             height: "1px",
-            background: "linear-gradient(90deg, transparent, rgba(226, 176, 78, 0.2), transparent)",
+            background: "linear-gradient(90deg, transparent, rgba(59, 130, 246, 0.15), transparent)",
             opacity: 0,
             transition: "opacity 0.4s ease",
           },
           "&:hover": {
-            borderColor: "rgba(226, 176, 78, 0.15)",
-            boxShadow: "0 8px 40px 0 rgba(0, 0, 0, 0.5), 0 0 40px rgba(226, 176, 78, 0.03)",
+            borderColor: "rgba(255, 255, 255, 0.1)",
+            boxShadow: "0 8px 40px 0 rgba(0, 0, 0, 0.5)",
             transform: "translateY(-2px)",
             "&::before": {
               opacity: 1,
@@ -105,16 +106,16 @@ export const premiumConsoleTheme = createTheme({
           "&:hover": {
             backgroundColor: "rgba(3, 5, 10, 0.75)",
             "& .MuiOutlinedInput-notchedOutline": {
-              borderColor: "rgba(226, 176, 78, 0.3)",
-              boxShadow: "0 0 20px rgba(226, 176, 78, 0.03)",
+              borderColor: "rgba(59, 130, 246, 0.3)",
+              boxShadow: "0 0 20px rgba(59, 130, 246, 0.03)",
             },
           },
           "&.Mui-focused": {
             backgroundColor: "rgba(3, 5, 10, 0.8)",
             "& .MuiOutlinedInput-notchedOutline": {
-              borderColor: "#E2B04E",
+              borderColor: "#3B82F6",
               borderWidth: "1px",
-              boxShadow: "0 0 30px rgba(226, 176, 78, 0.06)",
+              boxShadow: "0 0 30px rgba(59, 130, 246, 0.06)",
             },
           },
         },
@@ -154,17 +155,17 @@ export const premiumConsoleTheme = createTheme({
         {
           props: { variant: "contained", color: "primary" },
           style: {
-            background: "linear-gradient(135deg, #C9973A, #E2B04E, #FFD580)",
-            color: "#080D1C",
-            boxShadow: "0 4px 20px rgba(226, 176, 78, 0.25), 0 2px 8px rgba(226, 176, 78, 0.15)",
+            background: "linear-gradient(135deg, #1D4ED8, #3B82F6, #60A5FA)",
+            color: "#FFFFFF",
+            boxShadow: "0 4px 20px rgba(59, 130, 246, 0.25), 0 2px 8px rgba(59, 130, 246, 0.15)",
             "&:hover": {
-              background: "linear-gradient(135deg, #D4A84A, #E8B85E, #FFD580)",
-              boxShadow: "0 6px 30px rgba(226, 176, 78, 0.35), 0 4px 12px rgba(226, 176, 78, 0.2)",
+              background: "linear-gradient(135deg, #2563EB, #4B8BFA, #6BAFFA)",
+              boxShadow: "0 6px 30px rgba(59, 130, 246, 0.35), 0 4px 12px rgba(59, 130, 246, 0.2)",
               transform: "translateY(-2px) scale(1.01)",
             },
             "&:active": {
               transform: "translateY(0px) scale(0.98)",
-              boxShadow: "0 2px 10px rgba(226, 176, 78, 0.2)",
+              boxShadow: "0 2px 10px rgba(59, 130, 246, 0.2)",
             },
             "&:disabled": {
               background: "rgba(255, 255, 255, 0.05)",
@@ -198,12 +199,12 @@ export const premiumConsoleTheme = createTheme({
         {
           props: { variant: "outlined", color: "primary" },
           style: {
-            borderColor: "rgba(226, 176, 78, 0.3)",
-            color: "#E2B04E",
+            borderColor: "rgba(59, 130, 246, 0.3)",
+            color: "#60A5FA",
             "&:hover": {
-              borderColor: "#E2B04E",
-              backgroundColor: "rgba(226, 176, 78, 0.05)",
-              boxShadow: "0 0 30px rgba(226, 176, 78, 0.05)",
+              borderColor: "#3B82F6",
+              backgroundColor: "rgba(59, 130, 246, 0.05)",
+              boxShadow: "0 0 30px rgba(59, 130, 246, 0.05)",
             },
           },
         },
@@ -237,9 +238,9 @@ export const premiumConsoleTheme = createTheme({
           border: "1px solid rgba(255, 255, 255, 0.06)",
         },
         colorPrimary: {
-          backgroundColor: "rgba(226, 176, 78, 0.1)",
-          color: "#E2B04E",
-          border: "1px solid rgba(226, 176, 78, 0.2)",
+          backgroundColor: "rgba(59, 130, 246, 0.1)",
+          color: "#60A5FA",
+          border: "1px solid rgba(59, 130, 246, 0.2)",
         },
         colorSecondary: {
           backgroundColor: "rgba(16, 185, 129, 0.1)",
@@ -290,7 +291,7 @@ export const premiumConsoleTheme = createTheme({
       styleOverrides: {
         body: {
           scrollbarWidth: "thin",
-          scrollbarColor: "rgba(226, 176, 78, 0.2) transparent",
+          scrollbarColor: "rgba(59, 130, 246, 0.2) transparent",
         },
         "*::-webkit-scrollbar": {
           width: "4px",
@@ -300,10 +301,10 @@ export const premiumConsoleTheme = createTheme({
           background: "transparent",
         },
         "*::-webkit-scrollbar-thumb": {
-          background: "rgba(226, 176, 78, 0.2)",
+          background: "rgba(59, 130, 246, 0.2)",
           borderRadius: "4px",
           "&:hover": {
-            background: "rgba(226, 176, 78, 0.4)",
+            background: "rgba(59, 130, 246, 0.4)",
           },
         },
       },
@@ -312,7 +313,7 @@ export const premiumConsoleTheme = createTheme({
       styleOverrides: {
         root: {
           "&::selection": {
-            backgroundColor: "rgba(201, 151, 58, 0.3)",
+            backgroundColor: "rgba(59, 130, 246, 0.3)",
           },
         },
       },

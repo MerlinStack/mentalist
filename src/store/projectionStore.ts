@@ -18,6 +18,7 @@ interface ProjectionState {
   setShowReference: (b: boolean) => void;
   setShowTranslation: (b: boolean) => void;
   addToQueue: (verse: Verse) => void;
+  setQueue: (verses: Verse[]) => void;
   removeFromQueue: (index: number) => void;
   projectNext: () => void;
 }
@@ -63,8 +64,10 @@ export const useProjectionStore = create<ProjectionState>()(
 
       addToQueue: (verse) =>
         set((state) => ({
-          queue: state.queue.length >= 10 ? state.queue : [...state.queue, verse],
+          queue: state.queue.length >= 50 ? state.queue : [...state.queue, verse],
         })),
+
+      setQueue: (verses) => set({ queue: verses }),
 
       removeFromQueue: (index) =>
         set((state) => ({

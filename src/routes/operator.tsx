@@ -1,10 +1,13 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { useProjectionStore } from "../store/projectionStore";
+import { useSoundStore } from "../store/soundStore";
 import { useOrchestrator } from "../hooks/useOrchestrator";
 import type { Verse } from "../api/bible";
 import { MATCH_RANGE_OPTIONS } from "../utils/distance";
 import type { MatchRange } from "../utils/distance";
+import { lookupEngine } from "../services/scriptureLookup";
+import { parseScriptureReference } from "../utils/scriptureParser";
 import Box from "@mui/material/Box";
 import Card from "@mui/material/Card";
 import Typography from "@mui/material/Typography";
@@ -14,6 +17,7 @@ import InputAdornment from "@mui/material/InputAdornment";
 import IconButton from "@mui/material/IconButton";
 import Stack from "@mui/material/Stack";
 import Chip from "@mui/material/Chip";
+import Grid from "@mui/material/Grid";
 import SearchIcon from "@mui/icons-material/Search";
 import MicIcon from "@mui/icons-material/Mic";
 import VolumeOffIcon from "@mui/icons-material/VolumeOff";
@@ -54,9 +58,10 @@ function OperatorConsole() {
     stopListening,
     pushToProjection,
     searchUtterance,
-    matchRange,
-    setMatchRange,
   } = useOrchestrator();
+
+  const matchRange = useSoundStore((s) => s.matchRange);
+  const setMatchRange = useSoundStore((s) => s.setMatchRange);
 
   const queue = useProjectionStore((s) => s.queue);
   const addToQueue = useProjectionStore((s) => s.addToQueue);
@@ -69,6 +74,8 @@ function OperatorConsole() {
   const [elapsed, setElapsed] = useState(0);
   const [queueDrawerOpen, setQueueDrawerOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [chapterVerses, setChapterVerses] = useState<{ verse: number; text: string }[]>([]);
+  const [currentChapterRef, setCurrentChapterRef] = useState("");
 
   useEffect(() => {
     channelRef.current = new BroadcastChannel("scriptureflow-projection");
@@ -86,26 +93,58 @@ function OperatorConsole() {
     }
   }, [transcript]);
 
+  const sourceRef = useRef<string | null>(null);
   useEffect(() => {
-    if (detectedVerse) {
-      const ref = (detectedVerse as any).ref || (detectedVerse as any).reference || "";
-      if (ref && ref !== prevDetectedRef.current) {
-        prevDetectedRef.current = ref;
+    const src = currentVerse || detectedVerse;
+    if (!src) { console.log("[chapter] no src"); return; }
+    const s = src as any;
+    let ref = s.ref || s.reference || "";
+    if (!ref || ref === sourceRef.current) { console.log("[chapter] skip dup", ref); return; }
+    sourceRef.current = ref;
+    let book = s.book;
+    let chapter = s.chapter;
+    let verse = s.verse;
+    if (!book || !chapter) {
+      const parsed = parseScriptureReference(ref);
+      if (parsed.length > 0) {
+        book = parsed[0].book;
+        chapter = parsed[0].chapter;
+        verse = parsed[0].verse || 1;
       }
     }
-  }, [detectedVerse]);
+    console.log("[chapter] got ref", ref, "book", book, "ch", chapter, "vs", verse);
+    if (book && chapter) {
+      try {
+        const all = lookupEngine.getChapter(book, chapter);
+        console.log("[chapter] getChapter returned", all?.length, "verses");
+        const remaining = all
+          .filter((v) => v.v > (verse || 0))
+          .map((v) => ({ verse: v.v, text: v.t }));
+        console.log("[chapter] remaining", remaining?.length);
+        setChapterVerses(remaining);
+        setCurrentChapterRef(`${book} ${chapter}`);
+      } catch (e) {
+        console.warn("Failed to load chapter verses:", e);
+      }
+    }
+  }, [currentVerse, detectedVerse]);
 
   const handlePushLive = () => {
     if (detectedVerse) {
       projectVerse(detectedVerse as any);
       pushToProjection(detectedVerse as any);
       channelRef.current?.postMessage({ type: "PROJECT_VERSE", verse: detectedVerse });
+      try { localStorage.setItem("mentalist_projection_verse", JSON.stringify(detectedVerse)); } catch {}
     }
   };
 
+  const togglingRef = useRef(false);
   const handleToggleMic = () => {
+    if (togglingRef.current) return;
+    togglingRef.current = true;
     if (isListening) stopListening();
     else startListening();
+    setTimeout(() => { togglingRef.current = false; }, 500);
   };
 
   const formatTime = () => {
@@ -126,19 +165,19 @@ function OperatorConsole() {
   const confidenceScore = 94;
 
   return (
-    <Box sx={{ minHeight: "100vh", bgcolor: "#05070f", color: "#fff", overflow: "hidden", position: "relative" }}>
+    <Box sx={{ minHeight: "100vh", bgcolor: "background.default", color: "text.primary", overflow: "hidden", position: "relative" }}>
       
       {/* Floating Orbs */}
       <Box sx={{ position: "fixed", inset: 0, overflow: "hidden", pointerEvents: "none", zIndex: 0 }}>
-        <Box sx={{ position: "absolute", top: "5%", left: "10%", width: 500, height: 500, borderRadius: "50%", opacity: 0.06, filter: "blur(72px)", bgcolor: "#C9973A", animation: "float 22s ease-in-out infinite" }} />
-        <Box sx={{ position: "absolute", bottom: "10%", right: "5%", width: 400, height: 400, borderRadius: "50%", opacity: 0.04, filter: "blur(72px)", bgcolor: "#3B82F6", animation: "float 28s ease-in-out infinite reverse" }} />
-        <Box sx={{ position: "absolute", top: "50%", right: "40%", width: 300, height: 300, borderRadius: "50%", opacity: 0.03, filter: "blur(72px)", bgcolor: "#10B981", animation: "float 18s ease-in-out infinite 5s" }} />
+        <Box sx={{ position: "absolute", top: "5%", left: "10%", width: 500, height: 500, borderRadius: "50%", opacity: 0.06, filter: "blur(72px)", bgcolor: "#3B82F6", animation: "float 22s ease-in-out infinite" }} />
+        <Box sx={{ position: "absolute", bottom: "10%", right: "5%", width: 400, height: 400, borderRadius: "50%", opacity: 0.04, filter: "blur(72px)", bgcolor: "#1D4ED8", animation: "float 28s ease-in-out infinite reverse" }} />
+        <Box sx={{ position: "absolute", top: "50%", right: "40%", width: 300, height: 300, borderRadius: "50%", opacity: 0.03, filter: "blur(72px)", bgcolor: "#FFFFFF", animation: "float 18s ease-in-out infinite 5s" }} />
       </Box>
 
       {/* HEADER */}
-      <Box sx={{ position: "relative", zIndex: 10, height: 64, borderBottom: "1px solid rgba(255,255,255,0.04)", bgcolor: "rgba(10,15,30,0.7)", backdropFilter: "blur(24px)", display: "flex", alignItems: "center", justifyContent: "space-between", px: { xs: 2, md: 4 } }}>
-        <Stack direction="row" spacing={2} alignItems="center">
-          <Box sx={{ width: 36, height: 36, borderRadius: "12px", background: "linear-gradient(135deg, #C9973A, #FFD580)", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: 14, color: "#080D1C", boxShadow: "0 4px 16px rgba(201,151,58,0.2)" }}>
+      <Box sx={{ position: "relative", zIndex: 10, height: 64, borderBottom: 1, borderColor: "divider", bgcolor: "background.paper", backdropFilter: "blur(24px)", display: "flex", alignItems: "center", justifyContent: "space-between", px: { xs: 2, md: 4 } }}>
+        <Stack direction="row" spacing={2} sx={{ alignItems: "center" }}>
+          <Box sx={{ width: 36, height: 36, borderRadius: "12px", background: "linear-gradient(135deg, #1D4ED8, #3B82F6)", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: 14, color: "#FFFFFF", boxShadow: "0 4px 16px rgba(59,130,246,0.25)" }}>
             D
           </Box>
           <Box sx={{ display: { xs: "none", sm: "block" } }}>
@@ -156,9 +195,9 @@ function OperatorConsole() {
                   px: 2.5, py: 1, borderRadius: "8px", fontSize: 11, fontWeight: 600,
                   textTransform: "uppercase", letterSpacing: "0.05em", border: "none",
                   cursor: "pointer", transition: "all 0.2s", fontFamily: '"Inter", sans-serif',
-                  color: mode === tab ? "#E2B04E" : "rgba(255,255,255,0.4)",
-                  bgcolor: mode === tab ? "rgba(226,176,78,0.06)" : "transparent",
-                  "&:hover": { color: mode === tab ? "#E2B04E" : "rgba(255,255,255,0.7)" },
+                  color: mode === tab ? "#60A5FA" : "rgba(255,255,255,0.4)",
+                  bgcolor: mode === tab ? "rgba(59,130,246,0.08)" : "transparent",
+                  "&:hover": { color: mode === tab ? "#60A5FA" : "rgba(255,255,255,0.7)" },
                 }}
               >
                 {tab}
@@ -167,7 +206,7 @@ function OperatorConsole() {
           </Stack>
         </Stack>
 
-        <Stack direction="row" spacing={1.5} alignItems="center">
+        <Stack direction="row" spacing={1.5} sx={{ alignItems: "center" }}>
           {/* AI Status */}
           <Stack direction="row" spacing={1.5} sx={{ display: { xs: "none", lg: "flex" }, fontFamily: '"JetBrains Mono", monospace', fontSize: 10, color: "rgba(255,255,255,0.4)", px: 2, py: 0.75, borderRadius: "8px", bgcolor: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.04)" }}>
             <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
@@ -208,7 +247,7 @@ function OperatorConsole() {
             onClick={() => setQueueDrawerOpen(true)}
             sx={{
               px: 2, py: 1, borderRadius: "8px", fontSize: 11, fontWeight: 600,
-              border: "1px solid rgba(255,255,255,0.04)", cursor: "pointer",
+              border: "2px solid rgba(255,255,255,0.04)", cursor: "pointer",
               transition: "all 0.2s", fontFamily: '"Inter", sans-serif',
               bgcolor: "rgba(255,255,255,0.02)", color: "rgba(255,255,255,0.5)",
               display: { xs: "none", md: "flex" }, alignItems: "center", gap: 1,
@@ -221,21 +260,24 @@ function OperatorConsole() {
         </Stack>
       </Box>
 
-      {/* MAIN 3-COLUMN LAYOUT */}
-      <Box sx={{ position: "relative", zIndex: 10, display: "grid", gridTemplateColumns: { xs: "1fr", md: "repeat(12, 1fr)" }, gap: { xs: 2, md: 3 }, p: { xs: 2, md: 3 }, height: "calc(100vh - 64px)", overflow: "hidden" }}>
+      {/* MAIN LAYOUT */}
+      <Box sx={{ position: "relative", zIndex: 10, display: "flex", flexDirection: "column", p: { xs: 2, md: 3 }, height: "calc(100vh - 64px)", overflow: "hidden" }}>
         
-        {/* COLUMN 1: Telemetry & Controls */}
-        <Box sx={{ gridColumn: { xs: "span 12", md: "span 3" }, display: "flex", flexDirection: "column", gap: 2, overflowY: "auto" }}>
+        {/* Top Section — 3-column board row */}
+        <Box sx={{ display: "flex", flexDirection: "row", gap: 3, height: 280, overflow: "hidden" }}>
+          
+          {/* COLUMN 1: Telemetry & Controls */}
+          <Box sx={{ flex: 1, display: "flex", flexDirection: "column", gap: 2, overflowY: "auto" }}>
           
           {/* Live Transcript */}
           <Card sx={{ p: 2, display: "flex", flexDirection: "column", minHeight: 200, flex: 1 }}>
-            <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ borderBottom: "1px solid rgba(255,255,255,0.04)", pb: 1.5, mb: 1.5 }}>
-              <Stack direction="row" spacing={1} alignItems="center">
+            <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid rgba(255,255,255,0.04)", pb: 1.5, mb: 1.5 }}>
+              <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
                 <MicIcon sx={{ fontSize: 14, color: isListening ? "#10B981" : "rgba(255,255,255,0.2)", animation: isListening ? "pulse-green 2s ease-in-out infinite" : "none" }} />
                 <Typography sx={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "rgba(255,255,255,0.4)" }}>Live Transcript</Typography>
               </Stack>
-              <Stack direction="row" spacing={1} alignItems="center">
-                {isProcessing && <CircleIcon sx={{ fontSize: 8, color: "#E2B04E", animation: "pulse-gold 1s ease-in-out infinite" }} />}
+              <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
+                {isProcessing && <CircleIcon sx={{ fontSize: 8, color: "#60A5FA", animation: "pulse-gold 1s ease-in-out infinite" }} />}
                 <Chip
                   label={isListening ? "LISTENING" : "OFFLINE"}
                   size="small"
@@ -254,7 +296,7 @@ function OperatorConsole() {
                 const h = active ? Math.max(10, Math.min(100, audioLevel * 0.8 * (0.5 + wave * 0.5))) : 8 + (i % 5) * 4;
                 const intensity = h / 100;
                 const color = active
-                  ? intensity > 0.6 ? "#10B981" : intensity > 0.3 ? "#E2B04E" : "#3B82F6"
+                  ? intensity > 0.6 ? "#10B981" : intensity > 0.3 ? "#60A5FA" : "#3B82F6"
                   : "rgba(255,255,255,0.06)";
                 return (
                   <Box
@@ -281,7 +323,7 @@ function OperatorConsole() {
 
             {detectedVerse && (
               <Box sx={{ mt: 1, pt: 1.5, borderTop: "1px solid rgba(255,255,255,0.04)" }}>
-                <Stack direction="row" spacing={1.5} alignItems="center" sx={{ fontSize: 10 }}>
+                <Stack direction="row" spacing={1.5} sx={{ alignItems: "center", fontSize: 10 }}>
                   <CircleIcon sx={{ fontSize: 6, color: "#10B981" }} />
                   <Box component="span" sx={{ color: "#34D399", fontWeight: 600 }}>Detected:</Box>
                   <Box component="span" sx={{ color: "#fff", fontWeight: 600, fontFamily: '"JetBrains Mono", monospace' }}>
@@ -300,7 +342,7 @@ function OperatorConsole() {
               Engine Infrastructure
             </Typography>
 
-            <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1.5 }}>
+            <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center", mb: 1.5 }}>
               <Typography sx={{ fontSize: 11, color: "rgba(255,255,255,0.35)", fontFamily: '"JetBrains Mono", monospace' }}>Match Range</Typography>
               <Stack direction="row" spacing={0.5}>
                 {MATCH_RANGE_OPTIONS.map((opt) => (
@@ -312,9 +354,9 @@ function OperatorConsole() {
                       px: 1.5, py: 0.5, borderRadius: "4px", fontSize: 9, fontWeight: 700,
                       fontFamily: '"JetBrains Mono", monospace', textTransform: "capitalize",
                       border: "none", cursor: "pointer", transition: "all 0.15s",
-                      bgcolor: matchRange === opt.value ? "#E2B04E" : "rgba(255,255,255,0.03)",
-                      color: matchRange === opt.value ? "#080D1C" : "rgba(255,255,255,0.35)",
-                      "&:hover": { color: matchRange === opt.value ? "#080D1C" : "rgba(255,255,255,0.6)" },
+                      bgcolor: matchRange === opt.value ? "#3B82F6" : "rgba(255,255,255,0.03)",
+                      color: matchRange === opt.value ? "#FFFFFF" : "rgba(255,255,255,0.35)",
+                      "&:hover": { color: matchRange === opt.value ? "#FFFFFF" : "rgba(255,255,255,0.6)" },
                     }}
                   >
                     {opt.value}
@@ -370,11 +412,12 @@ function OperatorConsole() {
         </Box>
 
         {/* COLUMN 2: Preview */}
-        <Card sx={{ gridColumn: { xs: "span 12", md: "span 5" }, p: { xs: 2, md: 3 }, display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
+        <Box sx={{ width: 320, height: 280, flexShrink: 0, p: 2, display: "flex", flexDirection: "column" }}>
+        <Card sx={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
           
           {/* Preview Header */}
-          <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ borderBottom: "1px solid rgba(255,255,255,0.04)", pb: 1.5 }}>
-            <Stack direction="row" spacing={2} alignItems="center">
+          <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid rgba(255,255,255,0.04)", pb: 1.5 }}>
+            <Stack direction="row" spacing={2} sx={{ alignItems: "center" }}>
               <Box sx={{ position: "relative", width: 44, height: 44, display: "flex", alignItems: "center", justifyContent: "center" }}>
                 <svg width="44" height="44" viewBox="0 0 44 44" style={{ position: "absolute", transform: "rotate(-90deg)" }}>
                   <circle cx="22" cy="22" r="18" fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth="3" />
@@ -390,7 +433,7 @@ function OperatorConsole() {
 
             <Box sx={{ bgcolor: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.04)", borderRadius: 2, px: 2, py: 1, textAlign: "right" }}>
               <Typography sx={{ fontSize: 8, fontFamily: '"JetBrains Mono", monospace', textTransform: "uppercase", letterSpacing: "0.1em", color: "rgba(255,255,255,0.3)" }}>Next Expected</Typography>
-              <Typography sx={{ fontSize: 11, fontWeight: 700, fontFamily: '"JetBrains Mono", monospace', color: "#E2B04E", mt: 0.25 }}>
+              <Typography sx={{ fontSize: 11, fontWeight: 700, fontFamily: '"JetBrains Mono", monospace', color: "#60A5FA", mt: 0.25 }}>
                 {(displayVerse as any)?.reference || "—"}
               </Typography>
             </Box>
@@ -400,11 +443,11 @@ function OperatorConsole() {
           <Box sx={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", textAlign: "center", px: 4, py: 2 }}>
             {displayVerse ? (
               <>
-                <Typography sx={{ fontSize: 11, fontWeight: 700, fontFamily: '"JetBrains Mono", monospace', color: "#E2B04E", letterSpacing: "0.2em", textTransform: "uppercase", mb: 2 }}>
+                <Typography sx={{ fontSize: 11, fontWeight: 700, fontFamily: '"JetBrains Mono", monospace', color: "#60A5FA", letterSpacing: "0.2em", textTransform: "uppercase", mb: 2 }}>
                   — {(displayVerse as any).reference || (displayVerse as any).ref} · {TRANSLATIONS[translation]} —
                 </Typography>
                 <Typography sx={{ fontFamily: '"Georgia", serif', fontStyle: "italic", fontSize: { xs: 18, md: 22 }, lineHeight: 1.8, color: "rgba(255,255,255,0.95)", fontWeight: 400 }}>
-                  <Box component="span" sx={{ fontSize: 11, fontFamily: '"Inter", sans-serif', fontWeight: 800, mr: 1, color: "#E2B04E", verticalAlign: "super" }}>
+                    <Box component="span" sx={{ fontSize: 11, fontFamily: '"Inter", sans-serif', fontWeight: 800, mr: 1, color: "#60A5FA", verticalAlign: "super" }}>
                     {(displayVerse as any).verse}
                   </Box>
                   "{(displayVerse as any).text}"
@@ -423,7 +466,7 @@ function OperatorConsole() {
           </Box>
 
           {/* Preview Controls */}
-          <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ borderTop: "1px solid rgba(255,255,255,0.04)", pt: 2 }}>
+          <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center", borderTop: "1px solid rgba(255,255,255,0.04)", pt: 2 }}>
             <Stack direction="row" spacing={1}>
               <Box
                 component="button"
@@ -462,14 +505,16 @@ function OperatorConsole() {
             </Button>
           </Stack>
         </Card>
+        </Box>
 
         {/* COLUMN 3: Live Feed & Queue */}
-        <Box sx={{ gridColumn: { xs: "span 12", md: "span 4" }, display: "flex", flexDirection: "column", gap: 2 }}>
+        <Box sx={{ width: 320, height: 280, flexShrink: 0, p: 2, display: "flex", flexDirection: "column" }}>
+        <Box sx={{ display: "flex", flexDirection: "column", gap: 2, overflow: "hidden", flex: 1 }}>
           
           {/* Live Feed */}
-          <Card sx={{ flex: 1, p: 2, display: "flex", flexDirection: "column", justifyContent: "space-between", bgcolor: "rgba(239,68,68,0.015)", borderColor: "rgba(239,68,68,0.15)" }}>
-            <Stack direction="row" justifyContent="space-between" alignItems="center">
-              <Stack direction="row" spacing={1} alignItems="center">
+          <Card sx={{ flex: 1, p: 2, display: "flex", flexDirection: "column", justifyContent: "space-between", bgcolor: "rgba(239,68,68,0.04)", borderColor: "error.main" }}>
+            <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center" }}>
+              <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
                 <CircleIcon sx={{ fontSize: 8, color: currentVerse ? "#EF4444" : "rgba(255,255,255,0.15)", animation: currentVerse ? "pulse-red 1.5s ease-in-out infinite" : "none" }} />
                 <Typography sx={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "#EF4444" }}>Live Projector Feed</Typography>
               </Stack>
@@ -515,39 +560,45 @@ function OperatorConsole() {
           </Card>
 
           {/* Queue */}
-          <Card sx={{ p: 2, display: "flex", flexDirection: "column", maxHeight: 220 }}>
-            <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1.5 }}>
-              <Stack direction="row" spacing={1} alignItems="center">
+          <Card sx={{ p: 2, display: "flex", flexDirection: "column", flexShrink: 0, maxHeight: "40%" }}>
+            <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center", mb: 1.5 }}>
+              <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
                 <ClearAllIcon sx={{ fontSize: 14, color: "rgba(255,255,255,0.3)" }} />
-                <Typography sx={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "rgba(255,255,255,0.4)" }}>Queue System</Typography>
+                <Typography sx={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "rgba(255,255,255,0.4)" }}>Queue</Typography>
               </Stack>
-              <Box sx={{ width: 20, height: 20, borderRadius: "6px", bgcolor: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontFamily: '"JetBrains Mono", monospace', color: "rgba(255,255,255,0.5)", fontWeight: 700 }}>{queue.length}</Box>
+              <Box sx={{ width: 20, height: 20, borderRadius: "6px", bgcolor: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontFamily: '"JetBrains Mono", monospace', color: "rgba(255,255,255,0.5)", fontWeight: 700 }}>{chapterVerses.length}</Box>
             </Stack>
 
             <Box sx={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", gap: 1 }}>
-              {queue.length === 0 ? (
+              {chapterVerses.length === 0 ? (
                 <Box sx={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                  <Typography sx={{ fontSize: 10, color: "rgba(255,255,255,0.2)", fontStyle: "italic" }}>Queue is empty</Typography>
+                  <Typography sx={{ fontSize: 10, color: "rgba(255,255,255,0.2)", fontStyle: "italic" }}>No remaining verses</Typography>
                 </Box>
               ) : (
-                queue.slice(0, 3).map((v, i) => (
-                  <Box key={`${v.reference || v.ref}-${i}`} sx={{ p: 1.5, borderRadius: 2, bgcolor: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.04)", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 1 }}>
+                chapterVerses.slice(0, 5).map((v) => (
+                  <Box key={v.verse} sx={{ p: 1.5, borderRadius: 2, bgcolor: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.04)", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 1 }}>
                     <Box sx={{ flex: 1, minWidth: 0 }}>
-                      <Typography sx={{ fontSize: 10, fontWeight: 700, fontFamily: '"JetBrains Mono", monospace', color: "#E2B04E" }}>{v.reference || v.ref}</Typography>
+                      <Typography sx={{ fontSize: 10, fontWeight: 700, fontFamily: '"JetBrains Mono", monospace', color: "#60A5FA" }}>
+                        {currentChapterRef}.{v.verse}
+                      </Typography>
                       <Typography sx={{ fontSize: 9, color: "rgba(255,255,255,0.3)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontStyle: "italic" }}>{v.text}</Typography>
                     </Box>
-                    <Chip label="LIVE" size="small" color="error" sx={{ height: 18, fontSize: 8, fontWeight: 700 }} />
                   </Box>
                 ))
               )}
             </Box>
 
-            {queue.length > 0 && (
+            {chapterVerses.length > 0 && (
               <Button
                 variant="contained"
                 color="primary"
                 fullWidth
-                onClick={() => { projectVerse(queue[0]); removeFromQueue(0); }}
+                onClick={() => {
+                  const next = chapterVerses[0];
+                  const ref = `${currentChapterRef}:${next.verse}`;
+                  addToQueue({ reference: ref, text: next.text } as any);
+                  setChapterVerses((prev) => prev.slice(1));
+                }}
                 sx={{ mt: 1.5, py: 1, fontSize: 11, fontWeight: 600, borderRadius: "8px" }}
               >
                 Project Next →
@@ -555,15 +606,54 @@ function OperatorConsole() {
             )}
           </Card>
         </Box>
-      </Box>
+        </Box>
+        </Box>
+
+        {/* Horizontal divider */}
+        <Box sx={{ borderTop: "1px solid rgba(255,255,255,0.08)", my: 2, flexShrink: 0 }} />
+
+        {/* Scripture section below divider */}
+        <Box sx={{ flex: 1, display: "flex", flexDirection: "row", gap: 3, overflow: "hidden", ml: "auto", maxWidth: 664 }}>
+          <Card sx={{ flex: 1, display: "flex", flexDirection: "column" }}>
+            <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center", px: 2, pt: 1.5, pb: 1, borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
+              <Typography sx={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "rgba(255,255,255,0.4)" }}>
+                Scripture
+              </Typography>
+              <Chip label="KJV" size="small" color="primary" sx={{ height: 18, fontSize: 8, fontWeight: 700 }} />
+            </Stack>
+            <Box sx={{ flex: 1, overflowY: "auto", px: 2, py: 1 }}>
+              {chapterVerses.length > 0 ? (
+                <>
+                  <Typography sx={{ fontSize: 9, fontFamily: '"JetBrains Mono", monospace', color: "rgba(255,255,255,0.3)", mb: 1 }}>
+                    Remaining verses from {currentChapterRef}
+                  </Typography>
+                  {chapterVerses.map((v) => (
+                    <Box key={v.verse} sx={{ display: "flex", gap: 1, mb: 0.75 }}>
+                      <Typography sx={{ fontSize: 10, fontFamily: '"JetBrains Mono", monospace', color: "#60A5FA", fontWeight: 700, minWidth: 24, flexShrink: 0 }}>
+                        {v.verse}
+                      </Typography>
+                      <Typography sx={{ fontSize: 10, lineHeight: 1.5, color: "rgba(255,255,255,0.65)" }}>
+                        {v.text}
+                      </Typography>
+                    </Box>
+                  ))}
+                </>
+              ) : (
+                <Typography sx={{ fontSize: 10, color: "rgba(255,255,255,0.2)", fontStyle: "italic", textAlign: "center", mt: 6 }}>
+                  Detected chapter verses will appear here
+                </Typography>
+              )}
+            </Box>
+          </Card>
+        </Box>
 
       {/* Mobile Queue Drawer */}
       {queueDrawerOpen && (
         <Box sx={{ position: "fixed", inset: 0, zIndex: 1200, display: { md: "none" } }}>
           <Box sx={{ position: "absolute", inset: 0, bgcolor: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)" }} onClick={() => setQueueDrawerOpen(false)} />
           <Box sx={{ position: "absolute", right: 0, top: 0, bottom: 0, width: 320, bgcolor: "rgba(11,15,28,0.95)", backdropFilter: "blur(24px)", borderLeft: "1px solid rgba(255,255,255,0.04)", borderRadius: "16px 0 0 16px", display: "flex", flexDirection: "column", animation: "slide-up 0.25s ease-out" }}>
-            <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ px: 3, pt: 3, pb: 2, borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
-              <Stack direction="row" spacing={1} alignItems="center">
+            <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center", px: 3, pt: 3, pb: 2, borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
+              <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
                 <ClearAllIcon sx={{ fontSize: 16, color: "rgba(255,255,255,0.3)" }} />
                 <Typography sx={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "rgba(255,255,255,0.4)" }}>Queue</Typography>
                 <Box sx={{ width: 20, height: 20, borderRadius: "6px", bgcolor: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontFamily: '"JetBrains Mono", monospace', color: "rgba(255,255,255,0.5)", fontWeight: 700 }}>{queue.length}</Box>
@@ -576,13 +666,13 @@ function OperatorConsole() {
               {queue.map((v, i) => (
                 <Box key={i} sx={{ p: 2, borderRadius: 2, bgcolor: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.04)", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 1 }}>
                   <Box sx={{ flex: 1, minWidth: 0 }}>
-                    <Typography sx={{ fontSize: 11, fontWeight: 700, fontFamily: '"JetBrains Mono", monospace', color: "#E2B04E" }}>{v.reference || v.ref}</Typography>
+                    <Typography sx={{ fontSize: 11, fontWeight: 700, fontFamily: '"JetBrains Mono", monospace', color: "#60A5FA" }}>{v.reference || v.ref}</Typography>
                     <Typography sx={{ fontSize: 10, color: "rgba(255,255,255,0.3)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", lineClamp: 2, fontStyle: "italic" }}>{v.text}</Typography>
                   </Box>
                   <Box
                     component="button"
                     onClick={() => { projectVerse(v); removeFromQueue(i); setQueueDrawerOpen(false); }}
-                    sx={{ px: 2.5, py: 1, fontSize: 10, fontWeight: 700, fontFamily: '"JetBrains Mono", monospace', border: "none", borderRadius: "6px", cursor: "pointer", bgcolor: "#E2B04E", color: "#080D1C", "&:hover": { opacity: 0.9 } }}
+                    sx={{ px: 2.5, py: 1, fontSize: 10, fontWeight: 700, fontFamily: '"JetBrains Mono", monospace', border: "none", borderRadius: "6px", cursor: "pointer", bgcolor: "#3B82F6", color: "#FFFFFF", "&:hover": { opacity: 0.9 } }}
                   >
                     Live
                   </Box>
@@ -605,6 +695,7 @@ function OperatorConsole() {
           </Box>
         </Box>
       )}
+    </Box>
     </Box>
   );
 }

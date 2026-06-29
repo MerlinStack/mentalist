@@ -178,6 +178,7 @@ export const useScriptureStore = create<ScriptureState>()(
             translation: "KJV",
           })),
         });
+        return Promise.resolve();
       },
     }),
     {

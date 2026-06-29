@@ -6,6 +6,7 @@ import { useProjectionStore } from "../store/projectionStore";
 import { useSoundMode } from "../hooks/useSoundMode";
 
 import { useOrchestrator } from "../hooks/useOrchestrator";
+import { usePresentationController } from "../hooks/usePresentationController";
 import AiStatusChip from "../components/ai/AiStatusChip";
 import VersePanel from "../components/verse/VersePanel";
 import type { Verse } from "../api/bible";
@@ -108,12 +109,13 @@ export const OperatorPage: React.FC = () => {
   } = useSoundStore();
   const { results: searchResults, relatedReferences } = useScriptureStore();
   const { activeVerse } = useScriptureStore();
-  const utteranceRef = useRef<(text: string) => void>();
+  const utteranceRef = useRef<(text: string) => void>(undefined);
   const { startListening, stopListening } = useSoundMode({ utteranceRef });
   const { projectVerse, clearProjection, currentVerse: currentLiveVerse } = useProjection();
 
   const queue = useProjectionStore((s) => s.queue);
   const addToQueue = useProjectionStore((s) => s.addToQueue);
+  const setQueue = useProjectionStore((s) => s.setQueue);
   const removeFromQueue = useProjectionStore((s) => s.removeFromQueue);
 
   const {
@@ -140,6 +142,7 @@ export const OperatorPage: React.FC = () => {
   const [queueDrawerOpen, setQueueDrawerOpen] = useState(false);
   const [selectedSearchRef, setSelectedSearchRef] = useState<string | null>(null);
   const prevDetectedRef = useRef<string | null>(null);
+  const { launchProjection, isActive: isProjectorConnected, sendMessage } = usePresentationController("/projection");
   const channelRef = useRef<BroadcastChannel | null>(null);
   const transcriptRef = useRef<HTMLDivElement | null>(null);
 
@@ -216,12 +219,47 @@ export const OperatorPage: React.FC = () => {
     return () => channelRef.current?.close();
   }, []);
 
+  useEffect(() => {
+    if (currentLiveVerse) {
+      sendMessage({ type: "PROJECT_VERSE", verse: currentLiveVerse });
+    }
+  }, [currentLiveVerse, sendMessage]);
+
+  const prevVerseRef = useRef<string | null>(null);
+  useEffect(() => {
+    const verse = currentLiveVerse;
+    if (!verse) return;
+    const ref = verse.ref || verse.reference || "";
+    if (!ref || ref === prevVerseRef.current) return;
+    prevVerseRef.current = ref;
+    const book = verse.book;
+    const chapter = verse.chapter;
+    const verseNum = verse.verse;
+    if (!book || !chapter || !verseNum) return;
+    const all = lookupEngine.getChapter(book, chapter);
+    if (!all || all.length === 0) return;
+    const remaining = all
+      .filter((v) => v.v > verseNum)
+      .map((v) => ({
+        reference: `${v.b} ${v.c}:${v.v}`,
+        ref: `${v.b} ${v.c}:${v.v}`,
+        text: v.t,
+        book: v.b,
+        chapter: v.c,
+        verse: v.v,
+        translation: "KJV",
+      }));
+    setQueue(remaining);
+  }, [currentLiveVerse, setQueue]);
+
   const handlePushLive = () => {
     const verse = chapterVerses[previewIdx] || previewVerse || activeVerse || detectedVerse;
     if (verse) {
       projectVerse(verse);
       pushToProjection(verse);
       channelRef.current?.postMessage({ type: "PROJECT_VERSE", verse });
+      try { localStorage.setItem("mentalist_projection_verse", JSON.stringify(verse)); } catch {}
+      sendMessage({ type: "PROJECT_VERSE", verse });
     }
   };
 
@@ -234,9 +272,14 @@ export const OperatorPage: React.FC = () => {
     `${String(Math.floor(elapsed / 60)).padStart(2, "0")}:${String(elapsed % 60).padStart(2, "0")}`;
 
   const openProjector = () => {
-    window.open("/project", "_blank");
+    window.open("/projection", "_blank");
     if (currentLiveVerse)
       channelRef.current?.postMessage({ type: "PROJECT_VERSE", verse: currentLiveVerse });
+  };
+
+  const handleClearLive = () => {
+    clearProjection();
+    channelRef.current?.postMessage({ type: "CLEAR_PROJECTION" });
   };
 
   const displayVerse = previewVerse || activeVerse;
@@ -489,6 +532,25 @@ export const OperatorPage: React.FC = () => {
               </Box>
             </Button>
           )}
+
+          <Button
+            size="small"
+            variant="outlined"
+            onClick={launchProjection}
+            sx={{
+              fontSize: { xs: 9, md: 10 },
+              px: 2,
+              borderColor: isProjectorConnected ? "rgba(16,185,129,0.3)" : "rgba(201,151,58,0.3)",
+              color: isProjectorConnected ? "#34D399" : "#C9973A",
+              bgcolor: "rgba(26,32,53,0.4)",
+              "&:hover": {
+                bgcolor: "rgba(201,151,58,0.08)",
+                borderColor: "#C9973A",
+              },
+            }}
+          >
+            {isProjectorConnected ? "Display Linked" : "Launch Projector"}
+          </Button>
 
           <Button
             size="small"
@@ -1273,15 +1335,16 @@ export const OperatorPage: React.FC = () => {
                 display: "flex",
                 flexDirection: { xs: "column", lg: "row" },
                 gap: { xs: 2, md: 3 },
+                alignItems: { lg: "flex-start" },
               }}
             >
               <Box
                 sx={{
                   flex: 1,
+                  minWidth: 0,
                   display: "grid",
                   gridTemplateColumns: { xs: "1fr", md: "repeat(2, 1fr)" },
                   gap: { xs: 2, md: 3 },
-                  minWidth: 0,
                 }}
               >
                 {/* PREVIEW */}
@@ -1408,7 +1471,7 @@ export const OperatorPage: React.FC = () => {
                       {currentLiveVerse && (
                         <Button
                           size="small"
-                          onClick={clearProjection}
+                          onClick={handleClearLive}
                           sx={{
                             fontSize: 9,
                             color: "#94A3B8",
@@ -1499,80 +1562,89 @@ export const OperatorPage: React.FC = () => {
                 </Paper>
               </Box>
 
-              {/* QUEUE — desktop */}
-              <GlassPaper
+              {/* QUEUE — right sidebar */}
+              <Box
                 sx={{
-                  display: { xs: "none", lg: "flex" },
-                  width: 208,
+                  width: 220,
                   flexShrink: 0,
-                  borderRadius: 4,
+                  display: { xs: "none", lg: "flex" },
                   flexDirection: "column",
+                  bgcolor: "rgba(10,15,30,0.4)",
+                  borderRadius: 2,
+                  maxHeight: "calc(100vh - 120px)",
                   overflow: "hidden",
+                  position: "relative",
+                  "&::before": {
+                    content: '""',
+                    position: "absolute",
+                    left: 0,
+                    top: "5%",
+                    bottom: "5%",
+                    width: 1,
+                    background: "linear-gradient(180deg, transparent, rgba(201,151,58,0.25), transparent)",
+                  },
                 }}
               >
                 <Box
                   sx={{
                     display: "flex",
                     alignItems: "center",
-                    justifyContent: "space-between",
-                    px: 2.5,
-                    pt: 2,
-                    pb: 1,
+                    gap: 0.75,
+                    px: 1.5,
+                    py: 1,
+                    borderBottom: "1px solid rgba(255,255,255,0.04)",
                     flexShrink: 0,
                   }}
                 >
-                  <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                    <Box
+                  <Box
+                    sx={{
+                      width: 3,
+                      height: 12,
+                      borderRadius: 1,
+                      background: "linear-gradient(180deg, #FFD580 0%, rgba(201,151,58,0.3) 100%)",
+                    }}
+                  />
+                  <Typography
+                    sx={{
+                      fontSize: 9,
+                      fontWeight: 700,
+                      letterSpacing: "0.1em",
+                      textTransform: "uppercase",
+                      color: "#FFD580",
+                      fontFamily: "'JetBrains Mono Variable', monospace",
+                    }}
+                  >
+                    Queue
+                  </Typography>
+                  {queue.length > 0 && (
+                    <Chip
+                      label={queue.length}
+                      size="small"
                       sx={{
-                        width: 4,
-                        height: 12,
-                        borderRadius: 1,
-                        background:
-                          "linear-gradient(180deg, #FFD580 0%, rgba(201,151,58,0.3) 100%)",
+                        height: 16,
+                        fontSize: 8,
+                        fontFamily: "'JetBrains Mono Variable', monospace",
+                        bgcolor: "rgba(30,41,59,0.5)",
+                        color: "#94A3B8",
                       }}
                     />
-                    <Typography
-                      sx={{
-                        fontSize: 9,
-                        fontWeight: 700,
-                        letterSpacing: "0.1em",
-                        textTransform: "uppercase",
-                        color: "#FFD580",
-                      }}
-                    >
-                      Queue
-                    </Typography>
-                    {queue.length > 0 && (
-                      <Chip
-                        label={queue.length}
-                        size="small"
-                        sx={{
-                          height: 18,
-                          fontSize: 9,
-                          fontFamily: "'JetBrains Mono Variable', monospace",
-                          bgcolor: "rgba(30,41,59,0.5)",
-                          color: "#94A3B8",
-                        }}
-                      />
-                    )}
-                  </Box>
+                  )}
                 </Box>
                 <Box
                   sx={{
                     flex: 1,
-                    overflowY: "auto",
-                    px: 2.5,
-                    pb: 2,
                     display: "flex",
                     flexDirection: "column",
-                    gap: 1,
+                    gap: 0.5,
+                    p: 1,
+                    overflowY: "auto",
+                    minHeight: 0,
                   }}
                 >
                   {queue.length === 0 ? (
                     <Box
                       sx={{
                         display: "flex",
-                        flexDirection: "column",
                         alignItems: "center",
                         justifyContent: "center",
                         height: "100%",
@@ -1580,12 +1652,9 @@ export const OperatorPage: React.FC = () => {
                       }}
                     >
                       <Typography
-                        sx={{ fontSize: 10, color: "text.disabled", fontStyle: "italic" }}
+                        sx={{ fontSize: 9, color: "text.disabled", fontStyle: "italic" }}
                       >
-                        Queue is empty
-                      </Typography>
-                      <Typography sx={{ fontSize: 8, color: "#475569", mt: 0.5 }}>
-                        Stage verses from Preview
+                        Remaining verses appear here
                       </Typography>
                     </Box>
                   ) : (
@@ -1593,100 +1662,66 @@ export const OperatorPage: React.FC = () => {
                       <Paper
                         key={`${v.reference || v.ref}-${i}`}
                         variant="outlined"
+                        onClick={() => {
+                          projectVerse(v);
+                          removeFromQueue(i);
+                        }}
                         sx={{
                           display: "flex",
-                          alignItems: "flex-start",
-                          gap: 1.5,
-                          p: 1.25,
-                          borderRadius: 1.5,
-                          bgcolor: "rgba(26,32,53,0.4)",
-                          borderColor: "rgba(45,58,92,0.2)",
+                          alignItems: "center",
+                          gap: 0.75,
+                          px: 1,
+                          py: 0.5,
+                          borderRadius: 1,
+                          bgcolor: "rgba(26,32,53,0.3)",
+                          borderColor: "rgba(45,58,92,0.15)",
+                          cursor: "pointer",
+                          flexShrink: 0,
+                          transition: "all 0.15s",
+                          "&:hover": {
+                            bgcolor: "rgba(201,151,58,0.08)",
+                            borderColor: "rgba(201,151,58,0.2)",
+                          },
                         }}
                       >
-                        <Box sx={{ flex: 1, minWidth: 0 }}>
-                          <Typography
-                            sx={{
-                              fontSize: 9,
-                              fontWeight: 600,
-                              color: "#C9973A",
-                              overflow: "hidden",
-                              textOverflow: "ellipsis",
-                              whiteSpace: "nowrap",
-                            }}
-                          >
-                            {v.reference || v.ref}
-                          </Typography>
-                          <Typography
-                            sx={{
-                              fontSize: 9,
-                              color: "text.secondary",
-                              lineHeight: 1.5,
-                              mt: 0.25,
-                              overflow: "hidden",
-                              textOverflow: "ellipsis",
-                              display: "-webkit-box",
-                              WebkitLineClamp: 2,
-                              WebkitBoxOrient: "vertical",
-                            }}
-                          >
-                            {v.text}
-                          </Typography>
-                        </Box>
-                        <Box
+                        <Typography
                           sx={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: 0.5,
+                            fontSize: 9,
+                            fontWeight: 600,
+                            color: "#C9973A",
+                            fontFamily: "'JetBrains Mono Variable', monospace",
                             flexShrink: 0,
-                            pt: 0.25,
                           }}
                         >
-                          <Button
-                            size="small"
-                            onClick={() => {
-                              projectVerse(v);
-                              removeFromQueue(i);
-                            }}
-                            sx={{ px: 1, py: 0.5, fontSize: 8, minWidth: 0 }}
-                          >
-                            Live
-                          </Button>
-                          <IconButton
-                            size="small"
-                            onClick={() => removeFromQueue(i)}
-                            sx={{
-                              fontSize: 8,
-                              color: "#64748B",
-                              bgcolor: "rgba(30,41,59,0.5)",
-                              border: "1px solid rgba(51,65,85,0.5)",
-                              borderRadius: 1,
-                              p: 0.5,
-                              "&:hover": { color: "#fff" },
-                            }}
-                          >
-                            &times;
-                          </IconButton>
-                        </Box>
+                          {v.reference || v.ref}
+                        </Typography>
                       </Paper>
                     ))
                   )}
                 </Box>
                 {queue.length > 0 && (
-                  <Box sx={{ px: 2.5, pb: 2, flexShrink: 0 }}>
+                  <Box
+                    sx={{
+                      px: 1.5,
+                      pb: 1,
+                      flexShrink: 0,
+                    }}
+                  >
                     <Button
                       fullWidth
+                      size="small"
                       variant="contained"
                       onClick={() => {
                         projectVerse(queue[0]);
                         removeFromQueue(0);
                       }}
-                      sx={{ py: 1, fontSize: 9 }}
+                      sx={{ py: 0.5, fontSize: 9 }}
                     >
                       Project Next &rarr;
                     </Button>
                   </Box>
                 )}
-              </GlassPaper>
+              </Box>
             </Box>
           ) : mode === "Music" ? (
             <GlassPaper
@@ -1767,12 +1802,14 @@ export const OperatorPage: React.FC = () => {
         anchor="right"
         open={queueDrawerOpen}
         onClose={() => setQueueDrawerOpen(false)}
-        PaperProps={{
-          sx: {
-            width: 288,
-            bgcolor: "rgba(13,20,38,0.96)",
-            backdropFilter: "blur(16px)",
-            borderLeft: "1px solid rgba(255,255,255,0.05)",
+        slotProps={{
+          paper: {
+            sx: {
+              width: 288,
+              bgcolor: "rgba(13,20,38,0.96)",
+              backdropFilter: "blur(16px)",
+              borderLeft: "1px solid rgba(255,255,255,0.05)",
+            },
           },
         }}
       >

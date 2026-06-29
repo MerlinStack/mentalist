@@ -84,7 +84,7 @@ const initialData = {
   streamActive: false,
   status: { whisper: 'ready' as 'idle' | 'loading' | 'ready', miniLM: 'ready' as 'idle' | 'loading' | 'ready' },
   transcriptHistory: [],
-  transcriptView: "live",
+  transcriptView: "live" as const,
 };
 
 export const useSoundStore = create<SoundState>()(

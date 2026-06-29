@@ -14,6 +14,7 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AppRouteImport } from './routes/app'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as ProjectRouteImport } from './routes/project'
+import { Route as ProjectionRouteImport } from './routes/projection'
 import { Route as OperatorRouteImport } from './routes/operator'
 import { Route as CatchAllRouteImport } from './routes/$'
 
@@ -50,6 +51,12 @@ const ProjectRoute = ProjectRouteImport.update({
 const OperatorRoute = OperatorRouteImport.update({
   id: '/operator',
   path: '/operator',
+  getParentRoute: () => rootRouteImport,
+} as any)
+
+const ProjectionRoute = ProjectionRouteImport.update({
+  id: '/projection',
+  path: '/projection',
   getParentRoute: () => rootRouteImport,
 } as any)
 
@@ -103,6 +110,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof OperatorRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/projection': {
+      id: '/projection'
+      path: '/projection'
+      fullPath: '/projection'
+      preLoaderRoute: typeof ProjectionRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/$': {
       id: '/$'
       path: '/$'
@@ -120,6 +134,7 @@ export interface FileRoutesByFullPath {
   '/admin': typeof AdminRoute
   '/project': typeof ProjectRoute
   '/operator': typeof OperatorRoute
+  '/projection': typeof ProjectionRoute
   '/$': typeof CatchAllRoute
 }
 
@@ -130,6 +145,7 @@ export interface FileRoutesByTo {
   '/admin': typeof AdminRoute
   '/project': typeof ProjectRoute
   '/operator': typeof OperatorRoute
+  '/projection': typeof ProjectionRoute
   '/$': typeof CatchAllRoute
 }
 
@@ -141,15 +157,16 @@ export interface FileRoutesById {
   '/admin': typeof AdminRoute
   '/project': typeof ProjectRoute
   '/operator': typeof OperatorRoute
+  '/projection': typeof ProjectionRoute
   '/$': typeof CatchAllRoute
 }
 
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/auth' | '/app' | '/admin' | '/project' | '/operator' | '/$'
+  fullPaths: '/' | '/auth' | '/app' | '/admin' | '/project' | '/projection' | '/operator' | '/$'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/auth' | '/app' | '/admin' | '/project' | '/operator' | '/$'
-  id: '__root__' | '/' | '/auth' | '/app' | '/admin' | '/project' | '/operator' | '/$'
+  to: '/' | '/auth' | '/app' | '/admin' | '/project' | '/projection' | '/operator' | '/$'
+  id: '__root__' | '/' | '/auth' | '/app' | '/admin' | '/project' | '/projection' | '/operator' | '/$'
   fileRoutesById: FileRoutesById
 }
 
@@ -159,6 +176,7 @@ export interface RootRouteChildren {
   AppRoute: typeof AppRoute
   AdminRoute: typeof AdminRoute
   ProjectRoute: typeof ProjectRoute
+  ProjectionRoute: typeof ProjectionRoute
   OperatorRoute: typeof OperatorRoute
   CatchAllRoute: typeof CatchAllRoute
 }
@@ -169,6 +187,7 @@ const rootRouteChildren: RootRouteChildren = {
   AppRoute: AppRoute,
   AdminRoute: AdminRoute,
   ProjectRoute: ProjectRoute,
+  ProjectionRoute: ProjectionRoute,
   OperatorRoute: OperatorRoute,
   CatchAllRoute: CatchAllRoute,
 }

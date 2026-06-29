@@ -52,7 +52,7 @@ function ProjectOutput() {
         else if (fontSize && fontSizeMap[fontSize]) setFontPx(fontSizeMap[fontSize]);
       }
 
-      if (type === "CLEAR") {
+      if (type === "CLEAR" || type === "CLEAR_PROJECTION") {
         setVerse(null);
       }
 

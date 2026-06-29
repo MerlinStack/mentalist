@@ -139,7 +139,7 @@ const BOOK_ALIASES = {
   jn: "John",
   joh: "John",
   act: "Acts",
-  acts: "Act",
+  acts: "Acts",
   ac: "Acts",
   rom: "Romans",
   romans: "Romans",

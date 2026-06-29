@@ -75,13 +75,11 @@ async function loadEmbedder(useWebGPU: boolean): Promise<any> {
 async function loadLegacyModels(): Promise<void> {
   self.postMessage({ type: "progress", model: "asr", status: "download", loaded: 0, total: 0 });
   asr = await pipeline("automatic-speech-recognition", "Xenova/whisper-tiny.en", {
-    quantized: true,
     progress_callback: (p: any) => self.postMessage({ type: "progress", model: "asr", status: p.status, loaded: p.loaded, total: p.total }),
   });
 
   self.postMessage({ type: "progress", model: "embedder", status: "download", loaded: 0, total: 0 });
   embedder = await pipeline("feature-extraction", "Xenova/all-MiniLM-L6-v2", {
-    quantized: true,
     progress_callback: (p: any) => self.postMessage({ type: "progress", model: "embedder", status: p.status, loaded: p.loaded, total: p.total }),
   });
 }

@@ -96,7 +96,7 @@ export default function AuthPage() {
             onChange={(e) => setPassword(e.target.value)}
             placeholder="Password"
             required
-            inputProps={{ minLength: 6 }}
+            slotProps={{ htmlInput: { minLength: 6 } }}
             fullWidth
             size="small"
             sx={{

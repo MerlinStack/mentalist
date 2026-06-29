@@ -88,9 +88,10 @@ export function useTranscription() {
           workerRef.current?.removeEventListener("message", handler);
           resolve(false);
         }
-      };
-      workerRef.current.addEventListener("message", handler);
-      setTimeout(() => {
+    };
+    workerRef.current.addEventListener("message", handler);
+    workerRef.current.postMessage({ type: "load" });
+    setTimeout(() => {
         workerRef.current?.removeEventListener("message", handler);
         if (!isModelLoaded) resolve(false);
       }, 120000);

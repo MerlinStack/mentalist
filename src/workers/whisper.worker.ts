@@ -8,7 +8,6 @@ self.onmessage = async (event) => {
   if (type === "load") {
     try {
       transcriber = await pipeline("automatic-speech-recognition", "Xenova/whisper-tiny.en", {
-        quantized: true,
         progress_callback: (progress: any) => {
           self.postMessage({
             type: "progress",
