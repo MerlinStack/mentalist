@@ -85,9 +85,12 @@ export const ProjectionDisplay: React.FC = () => {
   }, []);
 
   const verseLength = currentVerse?.text?.length || 0;
-  const bodyFontSize = verseLength > 300 ? { md: "2.2rem", lg: "2.8rem", xl: "3.2rem" }
-    : verseLength > 150 ? { md: "2.8rem", lg: "3.5rem", xl: "4rem" }
-    : { md: "3.5rem", lg: "4.5rem", xl: "5.5rem" };
+  const bodyFontSize =
+    verseLength > 300
+      ? { md: "2.2rem", lg: "2.8rem", xl: "3.2rem" }
+      : verseLength > 150
+        ? { md: "2.8rem", lg: "3.5rem", xl: "4rem" }
+        : { md: "3.5rem", lg: "4.5rem", xl: "5.5rem" };
 
   return (
     <Box
@@ -130,7 +133,8 @@ export const ProjectionDisplay: React.FC = () => {
           justifyContent: "center",
           alignItems: "center",
           boxSizing: "border-box",
-          transition: "opacity 0.4s cubic-bezier(0.4, 0, 0.2, 1), transform 0.4s cubic-bezier(0.4, 0, 0.2, 1)",
+          transition:
+            "opacity 0.4s cubic-bezier(0.4, 0, 0.2, 1), transform 0.4s cubic-bezier(0.4, 0, 0.2, 1)",
           opacity: isVisible && currentVerse ? 1 : 0,
           transform: isVisible && currentVerse ? "scale(1)" : "scale(0.98)",
           zIndex: 1,

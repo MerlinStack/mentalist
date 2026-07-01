@@ -7,27 +7,75 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const BIBLE_DIR = path.resolve(__dirname, "../public/bible");
 const VERSES_PATH = path.resolve(BIBLE_DIR, "verses.json");
 const OUTPUT_PATH = path.resolve(BIBLE_DIR, "embeddings.json");
-const KJV_SOURCE =
-  "https://raw.githubusercontent.com/thiagobodruk/bible/master/json/en_kjv.json";
+const KJV_SOURCE = "https://raw.githubusercontent.com/thiagobodruk/bible/master/json/en_kjv.json";
 
 const ABBREV_TO_BOOK = {
-  gn: "Genesis", ex: "Exodus", lv: "Leviticus", nm: "Numbers",
-  dt: "Deuteronomy", js: "Joshua", jg: "Judges", rt: "Ruth",
-  "1sm": "1 Samuel", "2sm": "2 Samuel", "1kg": "1 Kings", "2kg": "2 Kings",
-  "1ch": "1 Chronicles", "2ch": "2 Chronicles", ez: "Ezra", nh: "Nehemiah",
-  et: "Esther", jb: "Job", ps: "Psalms", pr: "Proverbs",
-  ec: "Ecclesiastes", ss: "Song of Solomon", is: "Isaiah", jr: "Jeremiah",
-  lm: "Lamentations", ek: "Ezekiel", dn: "Daniel", hs: "Hosea",
-  jl: "Joel", am: "Amos", ob: "Obadiah", jh: "Jonah",
-  mc: "Micah", na: "Nahum", hk: "Habakkuk", zp: "Zephaniah",
-  hg: "Haggai", zc: "Zechariah", ml: "Malachi",
-  mt: "Matthew", mk: "Mark", lk: "Luke", jn: "John",
-  ac: "Acts", rm: "Romans", "1co": "1 Corinthians", "2co": "2 Corinthians",
-  gl: "Galatians", ep: "Ephesians", pp: "Philippians", cl: "Colossians",
-  "1ts": "1 Thessalonians", "2ts": "2 Thessalonians", "1tm": "1 Timothy", "2tm": "2 Timothy",
-  tt: "Titus", pm: "Philemon", hb: "Hebrews", jm: "James",
-  "1pt": "1 Peter", "2pt": "2 Peter", "1jn": "1 John", "2jn": "2 John",
-  "3jn": "3 John", jd: "Jude", rv: "Revelation",
+  gn: "Genesis",
+  ex: "Exodus",
+  lv: "Leviticus",
+  nm: "Numbers",
+  dt: "Deuteronomy",
+  js: "Joshua",
+  jg: "Judges",
+  rt: "Ruth",
+  "1sm": "1 Samuel",
+  "2sm": "2 Samuel",
+  "1kg": "1 Kings",
+  "2kg": "2 Kings",
+  "1ch": "1 Chronicles",
+  "2ch": "2 Chronicles",
+  ez: "Ezra",
+  nh: "Nehemiah",
+  et: "Esther",
+  jb: "Job",
+  ps: "Psalms",
+  pr: "Proverbs",
+  ec: "Ecclesiastes",
+  ss: "Song of Solomon",
+  is: "Isaiah",
+  jr: "Jeremiah",
+  lm: "Lamentations",
+  ek: "Ezekiel",
+  dn: "Daniel",
+  hs: "Hosea",
+  jl: "Joel",
+  am: "Amos",
+  ob: "Obadiah",
+  jh: "Jonah",
+  mc: "Micah",
+  na: "Nahum",
+  hk: "Habakkuk",
+  zp: "Zephaniah",
+  hg: "Haggai",
+  zc: "Zechariah",
+  ml: "Malachi",
+  mt: "Matthew",
+  mk: "Mark",
+  lk: "Luke",
+  jn: "John",
+  ac: "Acts",
+  rm: "Romans",
+  "1co": "1 Corinthians",
+  "2co": "2 Corinthians",
+  gl: "Galatians",
+  ep: "Ephesians",
+  pp: "Philippians",
+  cl: "Colossians",
+  "1ts": "1 Thessalonians",
+  "2ts": "2 Thessalonians",
+  "1tm": "1 Timothy",
+  "2tm": "2 Timothy",
+  tt: "Titus",
+  pm: "Philemon",
+  hb: "Hebrews",
+  jm: "James",
+  "1pt": "1 Peter",
+  "2pt": "2 Peter",
+  "1jn": "1 John",
+  "2jn": "2 John",
+  "3jn": "3 John",
+  jd: "Jude",
+  rv: "Revelation",
 };
 
 function formatBookName(raw) {
@@ -42,9 +90,7 @@ async function downloadVerses() {
   const verses = [];
   let id = 1;
   for (const book of raw) {
-    const bookName = formatBookName(
-      book.name || book.book_name || book.abbrev || "",
-    );
+    const bookName = formatBookName(book.name || book.book_name || book.abbrev || "");
     if (book.chapters) {
       for (let c = 0; c < book.chapters.length; c++) {
         const chapter = book.chapters[c];

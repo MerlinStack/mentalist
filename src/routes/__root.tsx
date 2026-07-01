@@ -63,12 +63,15 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
         px: 2,
       }}
     >
-      <Box sx={{ maxWidth: 480, textAlign: "center" }}>
+      <Box sx={{ maxWidth: 600, textAlign: "center" }}>
         <Typography sx={{ fontSize: 20, fontWeight: 600, color: "#F1F5F9" }}>
           This page didn't load
         </Typography>
         <Typography sx={{ fontSize: 14, color: "#94A3B8", mt: 1 }}>
           Something went wrong on our end. You can try refreshing or head back home.
+        </Typography>
+        <Typography sx={{ fontSize: 12, color: "#ef4444", mt: 2, fontFamily: "monospace" }}>
+          {error?.message || error?.toString() || "Unknown error"}
         </Typography>
         <Box sx={{ mt: 4, display: "flex", flexWrap: "wrap", justifyContent: "center", gap: 1 }}>
           <Button

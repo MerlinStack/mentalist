@@ -31,8 +31,8 @@ self.onmessage = async (event) => {
     try {
       const audioData = payload;
       const result = await transcriber(audioData, {
-        chunk_length_s: 30,
-        stride_length_s: 5,
+        chunk_length_s: 5,
+        stride_length_s: 2,
         return_timestamps: false,
       });
       self.postMessage({ type: "result", result });

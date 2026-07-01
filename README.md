@@ -31,10 +31,10 @@ ScriptureFlow is a browser-first application that listens to spoken audio throug
 
 The application uses a dual-tier Web Worker architecture:
 
-| Tier | Models | Device | Use case |
-|------|--------|--------|----------|
-| **A** (CPU) | `whisper-tiny.en` + `all-MiniLM-L6-v2` | CPU / WASM | Fast, low-latency detection |
-| **B** (WebGPU) | `whisper-large-v3-turbo` + `bge-base-en-v1.5` | WebGPU | High-accuracy fallback |
+| Tier           | Models                                        | Device     | Use case                    |
+| -------------- | --------------------------------------------- | ---------- | --------------------------- |
+| **A** (CPU)    | `whisper-tiny.en` + `all-MiniLM-L6-v2`        | CPU / WASM | Fast, low-latency detection |
+| **B** (WebGPU) | `whisper-large-v3-turbo` + `bge-base-en-v1.5` | WebGPU     | High-accuracy fallback      |
 
 Both tiers run entirely in the browser — no external API calls, no server-side inference.
 
@@ -42,29 +42,29 @@ Both tiers run entirely in the browser — no external API calls, no server-side
 
 ## Pages
 
-| Route | Page | Description |
-|-------|------|-------------|
-| `/` | Landing | Marketing / login entry point |
-| `/auth` | Auth | Authentication (Firebase) |
-| `/operator` | Operator | Main control console — mic control, preview, queue, live push |
-| `/project` | Projection | Second-screen view for displaying live verses |
-| `/admin` | Admin | Administrative panel |
+| Route       | Page       | Description                                                   |
+| ----------- | ---------- | ------------------------------------------------------------- |
+| `/`         | Landing    | Marketing / login entry point                                 |
+| `/auth`     | Auth       | Authentication (Firebase)                                     |
+| `/operator` | Operator   | Main control console — mic control, preview, queue, live push |
+| `/project`  | Projection | Second-screen view for displaying live verses                 |
+| `/admin`    | Admin      | Administrative panel                                          |
 
 ---
 
 ## Tech Stack
 
-| Layer | Technology |
-|-------|-----------|
-| Framework | React 19, TypeScript |
-| Routing | TanStack Router (file-based, auto-generated) |
-| Styling | Tailwind CSS v4, glassmorphism design system |
-| State | Zustand, TanStack Query |
-| UI | Radix UI primitives, Lucide icons, Sonner toasts |
-| Audio | Web Audio API, MediaRecorder |
-| AI | HuggingFace Transformers.js, ONNX Runtime Web |
-| Storage | Firebase |
-| Build | Vite 8, Vitest |
+| Layer     | Technology                                       |
+| --------- | ------------------------------------------------ |
+| Framework | React 19, TypeScript                             |
+| Routing   | TanStack Router (file-based, auto-generated)     |
+| Styling   | Tailwind CSS v4, glassmorphism design system     |
+| State     | Zustand, TanStack Query                          |
+| UI        | Radix UI primitives, Lucide icons, Sonner toasts |
+| Audio     | Web Audio API, MediaRecorder                     |
+| AI        | HuggingFace Transformers.js, ONNX Runtime Web    |
+| Storage   | Firebase                                         |
+| Build     | Vite 8, Vitest                                   |
 
 ---
 

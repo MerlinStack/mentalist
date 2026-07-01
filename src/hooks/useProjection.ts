@@ -5,7 +5,6 @@ import type { Verse } from "../api/bible";
 export function useProjection() {
   const channelRef = useRef<BroadcastChannel | null>(null);
   const windowRef = useRef<Window | null>(null);
-  const store = useProjectionStore();
 
   useEffect(() => {
     channelRef.current = new BroadcastChannel("scriptureflow-projection");
@@ -26,39 +25,44 @@ export function useProjection() {
 
   const projectVerse = useCallback(
     (verse: Verse) => {
-      store.projectVerse(verse);
+      const state = useProjectionStore.getState();
+      state.projectVerse(verse);
       channelRef.current?.postMessage({
         type: "PROJECT_VERSE",
         verse: {
           ...verse,
-          theme: store.theme,
-          fontSize: store.fontSize,
+          theme: state.theme,
+          fontSize: state.fontSize,
         },
       });
     },
-    [store],
+    [],
   );
 
   const clearProjection = useCallback(() => {
     channelRef.current?.postMessage({ type: "CLEAR" });
-    store.clearProjection();
-  }, [store]);
+    useProjectionStore.getState().clearProjection();
+  }, []);
 
   const updateTheme = useCallback(
     (theme: "dark" | "light" | "warm") => {
-      store.setTheme(theme);
+      useProjectionStore.getState().setTheme(theme);
       channelRef.current?.postMessage({ type: "SET_THEME", theme });
     },
-    [store],
+    [],
   );
 
   const updateFontSize = useCallback(
     (fontSize: "medium" | "large" | "xlarge") => {
-      store.setFontSize(fontSize);
+      useProjectionStore.getState().setFontSize(fontSize);
       channelRef.current?.postMessage({ type: "SET_FONT_SIZE", fontSize });
     },
-    [store],
+    [],
   );
+
+  const currentVerse = useProjectionStore((s) => s.currentVerse);
+  const theme = useProjectionStore((s) => s.theme);
+  const fontSize = useProjectionStore((s) => s.fontSize);
 
   return {
     openProjectionWindow,
@@ -66,9 +70,9 @@ export function useProjection() {
     clearProjection,
     updateTheme,
     updateFontSize,
-    currentVerse: store.currentVerse,
-    theme: store.theme,
-    fontSize: store.fontSize,
+    currentVerse,
+    theme,
+    fontSize,
   };
 }
 

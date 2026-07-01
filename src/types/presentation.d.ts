@@ -25,6 +25,6 @@ interface PresentationRequest {
   start(): Promise<PresentationConnection>;
 }
 
-declare var PresentationRequest: {
+declare const PresentationRequest: {
   new (urls: string[]): PresentationRequest;
 };

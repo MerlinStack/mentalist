@@ -1,7 +1,7 @@
 import { useRef, useCallback, useState } from "react";
 import { useSoundStore } from "../store/soundStore";
 
-const CHUNK_INTERVAL = 1200;
+const CHUNK_INTERVAL = 200;
 
 function ensureAudioContextRunning(ctx) {
   if (ctx.state === "suspended") {

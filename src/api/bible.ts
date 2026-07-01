@@ -9,6 +9,7 @@ export interface Verse {
   translation?: string;
   ref?: string;
   relevance?: number;
+  confidence?: number;
 }
 
 export interface VerseResult extends Verse {

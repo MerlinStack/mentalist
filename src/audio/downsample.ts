@@ -28,24 +28,38 @@ export function floatTo16BitPCM(float32: Float32Array): Int16Array {
   return pcm;
 }
 
-export function audioBlobToFloat32(blob: Blob): Promise<Float32Array> {
+let sharedAudioCtx: AudioContext | null = null;
+function getAudioContext(): AudioContext {
+  if (!sharedAudioCtx || sharedAudioCtx.state === "closed") {
+    sharedAudioCtx = new AudioContext({ sampleRate: TARGET_RATE });
+  }
+  if (sharedAudioCtx.state === "suspended") {
+    sharedAudioCtx.resume().catch(() => {});
+  }
+  return sharedAudioCtx;
+}
+
+export function audioBlobToFloat32(blob: Blob, skipPreprocess = false): Promise<Float32Array> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = async () => {
       try {
         const arrayBuffer = reader.result as ArrayBuffer;
-        const audioCtx = new AudioContext({ sampleRate: TARGET_RATE });
+        const audioCtx = getAudioContext();
         const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
-        const channelData = audioBuffer.getChannelData(0);
-        const downsampled = downsampleTo16kHz(channelData, audioBuffer.sampleRate);
-        await audioCtx.close();
-
-        const processed = preprocessAudio(downsampled, TARGET_RATE);
-
-        for (let i = 0; i < processed.length; i++) {
-          processed[i] = Math.max(-1, Math.min(1, processed[i]));
+        let channelData: Float32Array = audioBuffer.getChannelData(0);
+        if (audioBuffer.sampleRate !== TARGET_RATE) {
+          channelData = downsampleTo16kHz(channelData, audioBuffer.sampleRate);
         }
-        resolve(processed);
+
+        if (!skipPreprocess) {
+          channelData = preprocessAudio(channelData, TARGET_RATE);
+        }
+
+        for (let i = 0; i < channelData.length; i++) {
+          channelData[i] = Math.max(-1, Math.min(1, channelData[i]));
+        }
+        resolve(channelData);
       } catch (err) {
         reject(err);
       }

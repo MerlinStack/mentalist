@@ -53,11 +53,12 @@ export default function AdminPage() {
   ];
 
   const clearAllData = () => {
-    localStorage.removeItem("dmentalist-v1");
-    localStorage.removeItem("dmentalist-sound");
-    localStorage.removeItem("dmentalist-projection");
-    localStorage.removeItem("dmentalist-usage");
-    localStorage.removeItem("dmentalist-theme");
+    localStorage.removeItem("scriptureflow-v1");
+    localStorage.removeItem("scriptureflow-sound");
+    localStorage.removeItem("scriptureflow-projection");
+    localStorage.removeItem("scriptureflow-usage");
+    localStorage.removeItem("scriptureflow-tts");
+    localStorage.removeItem("mentalist-operator-theme");
     scripture.clearHistory();
     scripture.clearResults();
     sound.reset();

@@ -125,7 +125,7 @@ export class ScriptureLookupEngine {
   private tokenize(text: string): string[] {
     return text
       .toLowerCase()
-      .replace(/[.,\/#!$%\^&\*;:{}=\-_`~()?"']/g, "")
+      .replace(/[.,/#!$%^&*;:{}=\-_`~()?"']/g, "")
       .split(/\s+/)
       .filter((word) => word.length > 2);
   }
@@ -241,7 +241,7 @@ export class ScriptureLookupEngine {
         verse: matchedVerse.v,
         text: matchedVerse.t,
         confidence: Math.min(confidence, 100),
-        stage: "semantic",
+        stage: "regex",
       });
 
       if (results.length >= topN) break;

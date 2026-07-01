@@ -31,11 +31,13 @@ interface SoundState {
   semanticProgress: { status: string; loaded: number; total: number };
   micMuted: boolean;
   streamActive: boolean;
-  status: { whisper: 'idle' | 'loading' | 'ready'; miniLM: 'idle' | 'loading' | 'ready' };
+  status: { whisper: "idle" | "loading" | "ready"; miniLM: "idle" | "loading" | "ready" };
   transcriptHistory: TranscriptSegment[];
   transcriptView: "live" | "history";
+  useDeepgramFlux: boolean;
 
   setListening: (b: boolean) => void;
+  setUseDeepgramFlux: (b: boolean) => void;
   appendToken: (text: string, isFinal: boolean) => void;
   appendTranscript: (text: string) => void;
   setTranscript: (t: string) => void;
@@ -82,21 +84,27 @@ const initialData = {
   semanticProgress: { status: "idle" as string, loaded: 0, total: 0 },
   micMuted: false,
   streamActive: false,
-  status: { whisper: 'ready' as 'idle' | 'loading' | 'ready', miniLM: 'ready' as 'idle' | 'loading' | 'ready' },
+  status: {
+    whisper: "ready" as "idle" | "loading" | "ready",
+    miniLM: "ready" as "idle" | "loading" | "ready",
+  },
   transcriptHistory: [],
   transcriptView: "live" as const,
+  useDeepgramFlux: false,
 };
 
 export const useSoundStore = create<SoundState>()(
   persist(
     (set) => ({
       ...initialData,
+      setUseDeepgramFlux: (useDeepgramFlux) => set({ useDeepgramFlux }),
 
       setListening: (isListening) => set({ isListening }),
-      appendToken: (text, isFinal) => set((state: SoundState) => ({
-        recentChunk: isFinal ? state.recentChunk + ' ' + text : text,
-        transcript: isFinal ? state.transcript + ' ' + text : state.transcript,
-      })),
+      appendToken: (text, isFinal) =>
+        set((state: SoundState) => ({
+          recentChunk: isFinal ? state.recentChunk + " " + text : text,
+          transcript: isFinal ? state.transcript + " " + text : state.transcript,
+        })),
       appendTranscript: (text) =>
         set((state) => {
           const lines = (state.transcript + " " + text).split("\n");
@@ -164,6 +172,7 @@ export const useSoundStore = create<SoundState>()(
         aiMode: state.aiMode,
         micMuted: state.micMuted,
         transcriptHistory: state.transcriptHistory,
+        useDeepgramFlux: state.useDeepgramFlux,
       }),
     },
   ),

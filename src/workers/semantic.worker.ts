@@ -2,8 +2,8 @@ import { pipeline } from "@huggingface/transformers";
 
 let extractor: any = null;
 let embeddings: any[] = [];
-let bookCentroids: Map<string, Float32Array> = new Map();
-let embeddingsByBook: Map<string, any[]> = new Map();
+const bookCentroids: Map<string, Float32Array> = new Map();
+const embeddingsByBook: Map<string, any[]> = new Map();
 
 function cosineSimilarity(a: Float32Array, b: number[] | Float32Array): number {
   const bFloat = b instanceof Float32Array ? b : new Float32Array(b);
@@ -67,15 +67,19 @@ const BOOK_KEYWORDS: Record<string, string[]> = {
   Joshua: ["joshua", "jericho", "canaan", "promised land"],
   Judges: ["judges", "samson", "gideon", "israel"],
   Ruth: ["ruth", "naomi", "boaz"],
-  Samuel: ["samuel", "saul", "david", "goliath"],
-  Kings: ["kings", "solomon", "temple", "elijah", "elisha"],
-  Chronicles: ["chronicles", "david", "temple", "genealogy"],
+  "1 Samuel": ["1 samuel", "samuel", "saul", "david", "goliath"],
+  "2 Samuel": ["2 samuel", "samuel", "david", "absalom"],
+  "1 Kings": ["1 kings", "kings", "solomon", "temple", "elijah"],
+  "2 Kings": ["2 kings", "kings", "elisha", "hezekiah"],
+  "1 Chronicles": ["1 chronicles", "chronicles", "david", "temple", "genealogy"],
+  "2 Chronicles": ["2 chronicles", "chronicles", "solomon", "temple"],
   Ezra: ["ezra", "nehemiah", "jerusalem", "temple"],
   Esther: ["esther", "mordecai", "haman", "purim"],
   Job: ["job", "suffering", "satan", "comfort"],
   Psalms: ["psalm", "praise", "worship", "lord", "song", "sing"],
   Proverbs: ["proverb", "wisdom", "folly", "wise", "fool"],
   Ecclesiastes: ["ecclesiastes", "vanity", "meaningless", "wisdom"],
+  "Song of Solomon": ["song of solomon", "song", "solomon", "love", "bride"],
   Song: ["song", "solomon", "love", "bride"],
   Isaiah: ["isaiah", "prophet", "judgment", "salvation", "messiah"],
   Jeremiah: ["jeremiah", "prophet", "judgment", "weeping"],
@@ -99,18 +103,25 @@ const BOOK_KEYWORDS: Record<string, string[]> = {
   John: ["john", "jesus", "gospel", "light", "word", "love", "believe", "fellowship"],
   Acts: ["acts", "apostle", "peter", "paul", "holy spirit", "church"],
   Romans: ["romans", "paul", "faith", "grace", "sin", "salvation", "righteousness"],
-  Corinthians: ["corinthians", "paul", "church", "love", "spiritual", "gift"],
+  "1 Corinthians": ["1 corinthians", "corinthians", "paul", "church", "love", "spiritual", "gift"],
+  "2 Corinthians": ["2 corinthians", "corinthians", "paul", "church"],
   Galatians: ["galatians", "paul", "faith", "grace", "law", "freedom"],
   Ephesians: ["ephesians", "paul", "grace", "armor", "church"],
   Philippians: ["philippians", "paul", "joy", "rejoice"],
   Colossians: ["colossians", "paul", "christ", "supremacy"],
-  Thessalonians: ["thessalonians", "paul", "return", "end times"],
-  Timothy: ["timothy", "paul", "leadership", "church"],
+  "1 Thessalonians": ["1 thessalonians", "thessalonians", "paul", "return", "end times"],
+  "2 Thessalonians": ["2 thessalonians", "thessalonians", "paul", "end times"],
+  "1 Timothy": ["1 timothy", "timothy", "paul", "leadership", "church"],
+  "2 Timothy": ["2 timothy", "timothy", "paul", "church"],
   Titus: ["titus", "paul", "leadership"],
   Philemon: ["philemon", "paul"],
   Hebrews: ["hebrews", "faith", "christ", "priest", "covenant", "sacrifice"],
   James: ["james", "faith", "works", "wisdom"],
-  Peter: ["peter", "suffering", "hope", "grace"],
+  "1 Peter": ["1 peter", "peter", "suffering", "hope", "grace"],
+  "2 Peter": ["2 peter", "peter", "knowledge", "false teacher"],
+  "1 John": ["1 john", "john", "love", "fellowship", "light"],
+  "2 John": ["2 john", "john", "truth", "love"],
+  "3 John": ["3 john", "john", "truth", "hospitality"],
   Jude: ["jude", "contend", "faith"],
   Revelation: [
     "revelation",

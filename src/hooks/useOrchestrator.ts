@@ -2,14 +2,21 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useSoundStore } from "../store/soundStore";
 import { useScriptureStore } from "../store/scriptureStore";
 import { useProjectionStore } from "../store/projectionStore";
+import { useTTSStore } from "../store/ttsStore";
 import { useAudioCapture } from "./useAudioCapture";
 import { useTranscription } from "./useTranscription";
 import { useSemanticWorker } from "./useSemanticWorker";
+import { useTTS } from "./useTTS";
+import { useCloudflareVoiceAI } from "./useCloudflareVoiceAI";
 import type { Verse } from "../api/bible";
 import { extractScriptureFromText } from "../engine/regexEngine";
 import { analyzeWithContext, resetContext } from "../engine/contextEngine";
 import { audioBlobToFloat32 } from "../audio/downsample";
-import { isCloudflareConfigured, transcribeViaCloudflare } from "../gateway/cloudflare";
+import {
+  isCloudflareConfigured,
+  transcribeViaCloudflare,
+  transcribeDeepgramFlux,
+} from "../gateway/cloudflare";
 import { isLovableGatewayConfigured, transcribeViaLovable } from "../gateway/lovable";
 import { lookupEngine } from "../services/scriptureLookup";
 import { getDistanceThresholds } from "../utils/distance";
@@ -23,14 +30,18 @@ function normalise(v: any) {
 }
 
 export function useOrchestrator() {
-  const store = useSoundStore();
-  const scripture = useScriptureStore();
-  const projection = useProjectionStore();
   const channelRef = useRef<BroadcastChannel | null>(null);
 
   const { stream, audioLevel, frequencyData, startCapture, stopCapture } = useAudioCapture();
   const { isModelLoaded: whisperLoaded, transcribe, loadModel: loadWhisper } = useTranscription();
   const { searchSemantic, loadEmbeddings, isLoaded: semanticLoaded } = useSemanticWorker();
+  const voiceAI = useCloudflareVoiceAI();
+  const tts = useTTS();
+
+  const whisperLoadedRef = useRef(whisperLoaded);
+  whisperLoadedRef.current = whisperLoaded;
+  const semanticLoadedRef = useRef(semanticLoaded);
+  semanticLoadedRef.current = semanticLoaded;
 
   const [modelsReady, setModelsReady] = useState(false);
   const accumulationRef = useRef<{ text: string; timer: ReturnType<typeof setTimeout> | null }>({
@@ -98,13 +109,19 @@ export function useOrchestrator() {
   const pushToProjection = useCallback(
     (verse: any) => {
       const v = normalise(verse);
-      projection.projectVerse(v);
-      scripture.setActiveVerse(v);
-      scripture.addToHistory(v.ref || v.reference || "");
+      useProjectionStore.getState().projectVerse(v);
+      useScriptureStore.getState().setActiveVerse(v);
+      useScriptureStore.getState().addToHistory(v.ref || v.reference || "");
       channelRef.current?.postMessage({ type: "PROJECT_VERSE", verse: v });
-      try { localStorage.setItem("mentalist_projection_verse", JSON.stringify(v)); } catch {}
+      try {
+        localStorage.setItem("mentalist_projection_verse", JSON.stringify(v));
+      } catch {}
+
+      if (useTTSStore.getState().enabled && v.text) {
+        tts.speakText(v.text, v.ref || v.reference);
+      }
     },
-    [projection, scripture],
+    [tts],
   );
 
   const fetchVersesAndProject = useCallback(
@@ -125,11 +142,11 @@ export function useOrchestrator() {
         }
       }
       if (verses.length > 0) {
-        scripture.setResults(verses);
+        useScriptureStore.getState().setResults(verses);
         pushToProjection(verses[0]);
       }
     },
-    [scripture, pushToProjection],
+    [pushToProjection],
   );
 
   const processTranscriptChunk = useCallback(
@@ -152,9 +169,9 @@ export function useOrchestrator() {
         if (finalText === lastProcessedRef.current) return;
         lastProcessedRef.current = finalText;
 
-        store.setProcessing(true);
-        store.appendTranscript(finalText);
-        scripture.setTranscript(finalText);
+        useSoundStore.getState().setProcessing(true);
+        useSoundStore.getState().appendTranscript(finalText);
+        useScriptureStore.getState().setTranscript(finalText);
 
         const { explicit, implicit } = analyzeWithContext(finalText);
 
@@ -165,9 +182,9 @@ export function useOrchestrator() {
         const deduped = [...new Set(refs)];
 
         if (deduped.length > 0) {
-          store.appendToHistory(finalText, deduped[0]);
+          useSoundStore.getState().appendToHistory(finalText, deduped[0]);
           fetchVersesAndProject(deduped);
-          store.setProcessing(false);
+          useSoundStore.getState().setProcessing(false);
           return;
         }
 
@@ -177,34 +194,34 @@ export function useOrchestrator() {
 
         const fastMatch = lookupEngine.reverseLookup(finalText, tokenThreshold);
         if (fastMatch) {
-          store.setDetectedVerse({
+          useSoundStore.getState().setDetectedVerse({
             reference: fastMatch.ref,
             text: fastMatch.text,
             book: fastMatch.book,
             chapter: fastMatch.chapter,
             verse: fastMatch.verse,
-            translation: scripture.activeTranslation,
+            translation: useScriptureStore.getState().activeTranslation,
             ref: fastMatch.ref,
           });
           fetchVersesAndProject([fastMatch.ref]);
-          store.setProcessing(false);
+          useSoundStore.getState().setProcessing(false);
           return;
         }
 
-        if (semanticLoaded) {
+        if (semanticLoadedRef.current && !force) {
           try {
             const results = await searchSemantic(finalText);
             if (results.length > 0) {
               const best = results[0];
               if (best.score > semanticThreshold) {
                 const refStr = `${best.book} ${best.chapter}:${best.verse}`;
-                store.setDetectedVerse({
+                useSoundStore.getState().setDetectedVerse({
                   reference: refStr,
                   text: "",
                   book: best.book,
                   chapter: best.chapter,
                   verse: best.verse,
-                  translation: scripture.activeTranslation,
+                  translation: useScriptureStore.getState().activeTranslation,
                   ref: refStr,
                 });
                 fetchVersesAndProject([refStr]);
@@ -215,7 +232,15 @@ export function useOrchestrator() {
           }
         }
 
-        store.setProcessing(false);
+        if (!deduped.length && !fastMatch && useSoundStore.getState().aiMode && isCloudflareConfigured()) {
+          try {
+            voiceAI.processVoiceInput(finalText);
+          } catch (e) {
+            console.warn("Cloudflare Voice AI pipeline failed:", e);
+          }
+        }
+
+        useSoundStore.getState().setProcessing(false);
       };
 
       if (force || merged.length >= MIN_CHUNK_LENGTH) {
@@ -224,7 +249,7 @@ export function useOrchestrator() {
         acc.timer = setTimeout(processNow, ACCUMULATION_WINDOW);
       }
     },
-    [store, scripture, fetchVersesAndProject, semanticLoaded, searchSemantic],
+    [fetchVersesAndProject, searchSemantic, voiceAI],
   );
 
   const pendingChunksRef = useRef<Blob[]>([]);
@@ -232,7 +257,7 @@ export function useOrchestrator() {
 
   const audioCallback = useCallback(
     async (blob: Blob) => {
-      if (!whisperLoaded) {
+      if (!whisperLoadedRef.current) {
         pendingChunksRef.current.push(blob);
         return;
       }
@@ -243,16 +268,22 @@ export function useOrchestrator() {
 
       try {
         while (pendingChunksRef.current.length > 0) {
+          while (pendingChunksRef.current.length > 1) {
+            pendingChunksRef.current.shift();
+          }
           const chunk = pendingChunksRef.current.shift()!;
-          store.setProcessing(true);
+          useSoundStore.getState().setProcessing(true);
           let text = "";
           try {
             if (isCloudflareConfigured()) {
-              text = await transcribeViaCloudflare(chunk);
+              const useFlux = useSoundStore.getState().useDeepgramFlux;
+              text = useFlux
+                ? await transcribeDeepgramFlux(chunk)
+                : await transcribeViaCloudflare(chunk);
             } else if (isLovableGatewayConfigured()) {
               text = await transcribeViaLovable(chunk);
             } else {
-              const float32 = await audioBlobToFloat32(chunk);
+              const float32 = await audioBlobToFloat32(chunk, true);
               text = await transcribe(float32);
             }
             if (text && text.length > 0) {
@@ -261,21 +292,21 @@ export function useOrchestrator() {
           } catch (err) {
             console.error("Audio transcription error:", err);
           } finally {
-            store.setProcessing(false);
+            useSoundStore.getState().setProcessing(false);
           }
         }
       } finally {
         processingChunkRef.current = false;
       }
     },
-    [whisperLoaded, transcribe, processTranscriptChunk, store],
+    [transcribe, processTranscriptChunk],
   );
 
   const startListening = useCallback(async () => {
     try {
-      store.setError(null);
-      store.resetDetection();
-      store.setListening(true);
+      useSoundStore.getState().setError(null);
+      useSoundStore.getState().resetDetection();
+      useSoundStore.getState().setListening(true);
 
       const whisperReady = await loadWhisper();
       if (!whisperReady) {
@@ -283,24 +314,24 @@ export function useOrchestrator() {
       }
 
       await startCapture(audioCallback);
-      store.setStreamActive(true);
+      useSoundStore.getState().setStreamActive(true);
       setModelsReady(true);
       resetContext();
     } catch {
-      store.setError("Microphone access denied");
-      store.setListening(false);
+      useSoundStore.getState().setError("Microphone access denied");
+      useSoundStore.getState().setListening(false);
     }
-  }, [loadWhisper, startCapture, audioCallback, store]);
+  }, [loadWhisper, startCapture, audioCallback]);
 
   const stopListening = useCallback(() => {
     stopCapture();
-    store.setListening(false);
-    store.setProcessing(false);
-    store.setStreamActive(false);
-    store.clearTranscript();
-    scripture.clearDetection();
+    useSoundStore.getState().setListening(false);
+    useSoundStore.getState().setProcessing(false);
+    useSoundStore.getState().setStreamActive(false);
+    useSoundStore.getState().clearTranscript();
+    useScriptureStore.getState().clearDetection();
     resetContext();
-  }, [stopCapture, store, scripture]);
+  }, [stopCapture]);
 
   const detectText = useCallback(
     async (text: string) => {
@@ -329,33 +360,33 @@ export function useOrchestrator() {
 
       const fastMatch = lookupEngine.reverseLookup(text, tokenThreshold);
       if (fastMatch) {
-        store.setDetectedVerse({
+        useSoundStore.getState().setDetectedVerse({
           reference: fastMatch.ref,
           text: fastMatch.text,
           book: fastMatch.book,
           chapter: fastMatch.chapter,
           verse: fastMatch.verse,
-          translation: scripture.activeTranslation,
+          translation: useScriptureStore.getState().activeTranslation,
           ref: fastMatch.ref,
         });
         await fetchVersesAndProject([fastMatch.ref]);
         return;
       }
 
-      if (!semanticLoaded) return;
+      if (!semanticLoadedRef.current) return;
       try {
         const results = await searchSemantic(text);
         if (results.length > 0) {
           const best = results[0];
           if (best.score > semanticThreshold) {
             const refStr = `${best.book} ${best.chapter}:${best.verse}`;
-            store.setDetectedVerse({
+            useSoundStore.getState().setDetectedVerse({
               reference: refStr,
               text: "",
               book: best.book,
               chapter: best.chapter,
               verse: best.verse,
-              translation: scripture.activeTranslation,
+              translation: useScriptureStore.getState().activeTranslation,
               ref: refStr,
             });
             await fetchVersesAndProject([refStr]);
@@ -365,7 +396,7 @@ export function useOrchestrator() {
         console.warn("Search utterance semantic fallback failed:", e);
       }
     },
-    [store, scripture, fetchVersesAndProject, semanticLoaded, searchSemantic],
+    [fetchVersesAndProject, searchSemantic],
   );
 
   const searchPreview = useCallback(
@@ -388,33 +419,33 @@ export function useOrchestrator() {
 
       const fastMatch = lookupEngine.reverseLookup(text, tokenThreshold);
       if (fastMatch) {
-        store.setDetectedVerse({
+        useSoundStore.getState().setDetectedVerse({
           reference: fastMatch.ref,
           text: fastMatch.text,
           book: fastMatch.book,
           chapter: fastMatch.chapter,
           verse: fastMatch.verse,
-          translation: scripture.activeTranslation,
+          translation: useScriptureStore.getState().activeTranslation,
           ref: fastMatch.ref,
         });
         await fetchVersesAndProject([fastMatch.ref]);
         return;
       }
 
-      if (!semanticLoaded) return;
+      if (!semanticLoadedRef.current) return;
       try {
         const results = await searchSemantic(text);
         if (results.length > 0) {
           const best = results[0];
           if (best.score > semanticThreshold) {
             const refStr = `${best.book} ${best.chapter}:${best.verse}`;
-            store.setDetectedVerse({
+            useSoundStore.getState().setDetectedVerse({
               reference: refStr,
               text: "",
               book: best.book,
               chapter: best.chapter,
               verse: best.verse,
-              translation: scripture.activeTranslation,
+              translation: useScriptureStore.getState().activeTranslation,
               ref: refStr,
             });
             await fetchVersesAndProject([refStr]);
@@ -424,7 +455,7 @@ export function useOrchestrator() {
         console.warn("Search preview semantic fallback failed:", e);
       }
     },
-    [store, scripture, fetchVersesAndProject, semanticLoaded, searchSemantic],
+    [fetchVersesAndProject, searchSemantic],
   );
 
   const searchReferences = useCallback(
@@ -456,7 +487,7 @@ export function useOrchestrator() {
         addResult(r.book, r.chapter, r.verse, r.text, r.confidence);
       }
 
-      if (semanticLoaded) {
+      if (semanticLoadedRef.current) {
         try {
           const semanticResults = await searchSemantic(text);
           for (const r of semanticResults) {
@@ -471,14 +502,14 @@ export function useOrchestrator() {
       }
 
       const sorted = [...verseMap.values()].sort((a, b) => b.score - a.score).slice(0, 15);
-      scripture.setResults(sorted.map((v) => ({ ...v, reference: v.ref })));
+      useScriptureStore.getState().setResults(sorted.map((v) => ({ ...v, reference: v.ref })));
     },
-    [scripture, semanticLoaded, searchSemantic],
+    [searchSemantic],
   );
 
   const findRelated = useCallback(
     async (verseText: string): Promise<void> => {
-      if (!semanticLoaded || !verseText || verseText.length < 5) return;
+      if (!semanticLoadedRef.current || !verseText || verseText.length < 5) return;
       try {
         const results = await searchSemantic(verseText);
         const { semanticThreshold } = getDistanceThresholds(useSoundStore.getState().matchRange);
@@ -498,14 +529,25 @@ export function useOrchestrator() {
             };
           });
         if (related.length > 0) {
-          scripture.setRelatedReferences(related);
+          useScriptureStore.getState().setRelatedReferences(related);
         }
       } catch (e) {
         console.warn("Find related semantic failed:", e);
       }
     },
-    [semanticLoaded, searchSemantic],
+    [searchSemantic],
   );
+
+  const isListening = useSoundStore((s) => s.isListening);
+  const isProcessing = useSoundStore((s) => s.isProcessing);
+  const errorVal = useSoundStore((s) => s.error);
+  const sensitivity = useSoundStore((s) => s.sensitivity);
+  const transcript = useSoundStore((s) => s.transcript);
+  const detectedVerse = useSoundStore((s) => s.detectedVerse);
+  const useDeepgramFlux = useSoundStore((s) => s.useDeepgramFlux);
+  const aiMode = useSoundStore((s) => s.aiMode);
+  const setUseDeepgramFlux = useSoundStore((s) => s.setUseDeepgramFlux);
+  const setAiMode = useSoundStore((s) => s.setAiMode);
 
   useEffect(() => {
     return () => {
@@ -517,15 +559,15 @@ export function useOrchestrator() {
     stream,
     audioLevel,
     frequencyData,
-    isListening: store.isListening,
-    isProcessing: store.isProcessing,
-    error: store.error,
+    isListening,
+    isProcessing,
+    error: errorVal,
     whisperLoaded,
     semanticLoaded,
     modelsReady,
-    sensitivity: store.sensitivity,
-    transcript: store.transcript,
-    detectedVerse: store.detectedVerse,
+    sensitivity,
+    transcript,
+    detectedVerse,
     startListening,
     stopListening,
     detectText,
@@ -535,5 +577,13 @@ export function useOrchestrator() {
     findRelated,
     pushToProjection,
     fetchVerses: fetchVersesAndProject,
+
+    tts,
+    voiceAI,
+
+    useDeepgramFlux,
+    setUseDeepgramFlux,
+    aiMode,
+    setAiMode,
   };
 }

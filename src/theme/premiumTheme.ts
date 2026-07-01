@@ -68,7 +68,8 @@ export const premiumConsoleTheme = createTheme({
             left: 0,
             right: 0,
             height: "1px",
-            background: "linear-gradient(90deg, transparent, rgba(59, 130, 246, 0.15), transparent)",
+            background:
+              "linear-gradient(90deg, transparent, rgba(59, 130, 246, 0.15), transparent)",
             opacity: 0,
             transition: "opacity 0.4s ease",
           },

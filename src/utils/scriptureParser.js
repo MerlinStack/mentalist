@@ -183,7 +183,7 @@ const BOOK_ALIASES = {
   philemon: "Philemon",
   heb: "Hebrews",
   hebrews: "Hebrews",
-  hb: "Hebrews",
+  heb: "Hebrews",
   jam: "James",
   james: "James",
   jm: "James",

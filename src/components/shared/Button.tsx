@@ -23,12 +23,7 @@ const sizeMap: Record<Size, MuiButtonProps["size"]> = {
   lg: "large",
 };
 
-export default function Button({
-  variant = "primary",
-  size = "md",
-  sx,
-  ...props
-}: ButtonProps) {
+export default function Button({ variant = "primary", size = "md", sx, ...props }: ButtonProps) {
   return (
     <MuiButton
       variant={variant === "accent" ? "contained" : variant === "ghost" ? "text" : "contained"}
@@ -52,7 +47,10 @@ export default function Button({
           background: "rgba(255,255,255,0.04)",
           color: "#F1F5F9",
           border: "1px solid rgba(255,255,255,0.10)",
-          "&:hover": { background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.20)" },
+          "&:hover": {
+            background: "rgba(255,255,255,0.08)",
+            border: "1px solid rgba(255,255,255,0.20)",
+          },
         }),
         ...sx,
       }}

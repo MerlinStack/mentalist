@@ -31,8 +31,17 @@ function ModelProgress({
             filter: "drop-shadow(0 0 6px rgba(16, 185, 129, 0.6))",
           }}
         />
-        <Typography sx={{ fontSize: 10, color: "#34D399", fontFamily: '"JetBrains Mono Variable", monospace' }}>
-          {label} <Typography component="span" sx={{ fontSize: 10, color: "#10B981" }}>✓</Typography>
+        <Typography
+          sx={{
+            fontSize: 10,
+            color: "#34D399",
+            fontFamily: '"JetBrains Mono Variable", monospace',
+          }}
+        >
+          {label}{" "}
+          <Typography component="span" sx={{ fontSize: 10, color: "#10B981" }}>
+            ✓
+          </Typography>
         </Typography>
       </Box>
     );
@@ -42,16 +51,33 @@ function ModelProgress({
     return (
       <Box sx={{ width: "100%" }}>
         <Box sx={{ display: "flex", justifyContent: "space-between", mb: 0.25 }}>
-          <Typography sx={{ fontSize: 9, fontFamily: '"JetBrains Mono Variable", monospace', color: "#FBBF24" }}>
-            {["fallback", "webgpu-fallback"].includes(status) && "⟳ "}{label}
+          <Typography
+            sx={{
+              fontSize: 9,
+              fontFamily: '"JetBrains Mono Variable", monospace',
+              color: "#FBBF24",
+            }}
+          >
+            {["fallback", "webgpu-fallback"].includes(status) && "⟳ "}
+            {label}
             {status === "webgpu-fallback" && (
-              <Typography component="span" sx={{ fontSize: 8, color: "#64748B", ml: 0.5 }}>CPU</Typography>
+              <Typography component="span" sx={{ fontSize: 8, color: "#64748B", ml: 0.5 }}>
+                CPU
+              </Typography>
             )}
             {status === "fallback" && (
-              <Typography component="span" sx={{ fontSize: 8, color: "#64748B", ml: 0.5 }}>legacy</Typography>
+              <Typography component="span" sx={{ fontSize: 8, color: "#64748B", ml: 0.5 }}>
+                legacy
+              </Typography>
             )}
           </Typography>
-          <Typography sx={{ fontSize: 9, fontFamily: '"JetBrains Mono Variable", monospace', color: "#94A3B8" }}>
+          <Typography
+            sx={{
+              fontSize: 9,
+              fontFamily: '"JetBrains Mono Variable", monospace',
+              color: "#94A3B8",
+            }}
+          >
             {pct}%
           </Typography>
         </Box>
@@ -91,13 +117,41 @@ export default function AiStatusChip() {
 
   return (
     <GlassPaper sx={{ p: 1.5, minWidth: 180, "& + &": { mt: 1 } }}>
-      <Box sx={{ display: "flex", alignItems: "center", gap: 1, borderBottom: "1px solid rgba(255,255,255,0.04)", pb: 1, mb: 1 }}>
-        <Box sx={{ width: 4, height: 12, borderRadius: 1, background: "linear-gradient(180deg, #C9973A 0%, rgba(201,151,58,0.3) 100%)" }} />
+      <Box
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          gap: 1,
+          borderBottom: "1px solid rgba(255,255,255,0.04)",
+          pb: 1,
+          mb: 1,
+        }}
+      >
+        <Box
+          sx={{
+            width: 4,
+            height: 12,
+            borderRadius: 1,
+            background: "linear-gradient(180deg, #C9973A 0%, rgba(201,151,58,0.3) 100%)",
+          }}
+        />
         <CinemaLabel>Model Downloads</CinemaLabel>
       </Box>
-      <ModelProgress label="Whisper" loaded={whisperProgress.loaded} total={whisperProgress.total} status={whisperProgress.status} ready={whisperLoaded} />
+      <ModelProgress
+        label="Whisper"
+        loaded={whisperProgress.loaded}
+        total={whisperProgress.total}
+        status={whisperProgress.status}
+        ready={whisperLoaded}
+      />
       <Box sx={{ mt: 1 }}>
-        <ModelProgress label="Embedder" loaded={semanticProgress.loaded} total={semanticProgress.total} status={semanticProgress.status} ready={semanticLoaded} />
+        <ModelProgress
+          label="Embedder"
+          loaded={semanticProgress.loaded}
+          total={semanticProgress.total}
+          status={semanticProgress.status}
+          ready={semanticLoaded}
+        />
       </Box>
     </GlassPaper>
   );

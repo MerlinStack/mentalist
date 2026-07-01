@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
@@ -15,10 +15,11 @@ export default function AuthPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
 
-  if (user) {
-    navigate({ to: "/app", replace: true });
-    return null;
-  }
+  useEffect(() => {
+    if (user) {
+      navigate({ to: "/app", replace: true });
+    }
+  }, [user, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -47,18 +48,47 @@ export default function AuthPage() {
   };
 
   return (
-    <Box sx={{ minHeight: "100vh", bgcolor: "#0F0F0F", display: "flex", alignItems: "center", justifyContent: "center", px: 2 }}>
+    <Box
+      sx={{
+        minHeight: "100vh",
+        bgcolor: "#0F0F0F",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        px: 2,
+      }}
+    >
       <Box sx={{ width: "100%", maxWidth: 400 }}>
         <Box sx={{ textAlign: "center", mb: 4 }}>
           <Box
             component="button"
             onClick={() => navigate({ to: "/" })}
-            sx={{ display: "inline-flex", alignItems: "center", gap: 1, mb: 3, bgcolor: "transparent", border: "none", cursor: "pointer" }}
+            sx={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 1,
+              mb: 3,
+              bgcolor: "transparent",
+              border: "none",
+              cursor: "pointer",
+            }}
           >
-            <Box sx={{ width: 32, height: 32, borderRadius: 1.5, background: "linear-gradient(135deg, #C9973A, #FFD580)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <Box
+              sx={{
+                width: 32,
+                height: 32,
+                borderRadius: 1.5,
+                background: "linear-gradient(135deg, #C9973A, #FFD580)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
               <Typography sx={{ color: "#fff", fontWeight: 700, fontSize: 14 }}>D</Typography>
             </Box>
-            <Typography sx={{ fontSize: 18, fontWeight: 700, color: "#F1F5F9" }}>D'mentalist</Typography>
+            <Typography sx={{ fontSize: 18, fontWeight: 700, color: "#F1F5F9" }}>
+              D'mentalist
+            </Typography>
           </Box>
           <Typography sx={{ fontSize: 20, fontWeight: 700, color: "#F1F5F9" }}>
             {mode === "login" ? "Welcome back" : "Create account"}
@@ -68,7 +98,11 @@ export default function AuthPage() {
           </Typography>
         </Box>
 
-        <Box component="form" onSubmit={handleSubmit} sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+        <Box
+          component="form"
+          onSubmit={handleSubmit}
+          sx={{ display: "flex", flexDirection: "column", gap: 2 }}
+        >
           <TextField
             type="email"
             value={email}
@@ -112,7 +146,14 @@ export default function AuthPage() {
             }}
           />
           {error && (
-            <Typography sx={{ fontSize: 12, color: "#F87171", textAlign: "center", textTransform: "capitalize" }}>
+            <Typography
+              sx={{
+                fontSize: 12,
+                color: "#F87171",
+                textAlign: "center",
+                textTransform: "capitalize",
+              }}
+            >
               {error}
             </Typography>
           )}
@@ -151,14 +192,42 @@ export default function AuthPage() {
           {mode === "login" ? (
             <>
               Don't have an account?{" "}
-              <Box component="button" onClick={() => { setMode("signup"); setError(""); }} sx={{ color: "#FFD580", bgcolor: "transparent", border: "none", cursor: "pointer", fontWeight: 500, "&:hover": { textDecoration: "underline" } }}>
+              <Box
+                component="button"
+                onClick={() => {
+                  setMode("signup");
+                  setError("");
+                }}
+                sx={{
+                  color: "#FFD580",
+                  bgcolor: "transparent",
+                  border: "none",
+                  cursor: "pointer",
+                  fontWeight: 500,
+                  "&:hover": { textDecoration: "underline" },
+                }}
+              >
                 Sign up
               </Box>
             </>
           ) : (
             <>
               Already have an account?{" "}
-              <Box component="button" onClick={() => { setMode("login"); setError(""); }} sx={{ color: "#FFD580", bgcolor: "transparent", border: "none", cursor: "pointer", fontWeight: 500, "&:hover": { textDecoration: "underline" } }}>
+              <Box
+                component="button"
+                onClick={() => {
+                  setMode("login");
+                  setError("");
+                }}
+                sx={{
+                  color: "#FFD580",
+                  bgcolor: "transparent",
+                  border: "none",
+                  cursor: "pointer",
+                  fontWeight: 500,
+                  "&:hover": { textDecoration: "underline" },
+                }}
+              >
                 Sign in
               </Box>
             </>

@@ -1,14 +1,15 @@
 import { useState, useRef, useCallback } from "react";
 
 export const usePresentationController = (projectionUrl: string = "/projection") => {
-  const [presentationConnection, setPresentationConnection] = useState<PresentationConnection | null>(null);
+  const [presentationConnection, setPresentationConnection] =
+    useState<PresentationConnection | null>(null);
   const connectionRef = useRef<PresentationConnection | null>(null);
   const fallbackWindowRef = useRef<Window | null>(null);
 
   const launchProjection = async () => {
     const absoluteUrl = new URL(projectionUrl, window.location.origin).href;
 
-    if (navigator.presentation && window.PresentationRequest) {
+    if (navigator.presentation && typeof PresentationRequest !== "undefined") {
       try {
         const request = new PresentationRequest([absoluteUrl]);
         const connection = await request.start();
@@ -28,7 +29,7 @@ export const usePresentationController = (projectionUrl: string = "/projection")
       fallbackWindowRef.current = window.open(
         absoluteUrl,
         "Mentalist_Display",
-        `width=${width},height=${height},left=${left},top=0,menubar=no,toolbar=no,location=no,status=no`
+        `width=${width},height=${height},left=${left},top=0,menubar=no,toolbar=no,location=no,status=no`,
       );
     } else {
       fallbackWindowRef.current.focus();
@@ -57,5 +58,10 @@ export const usePresentationController = (projectionUrl: string = "/projection")
     }
   };
 
-  return { launchProjection, closeProjection, sendMessage, isActive: !!presentationConnection || !!fallbackWindowRef.current };
+  return {
+    launchProjection,
+    closeProjection,
+    sendMessage,
+    isActive: !!presentationConnection || !!fallbackWindowRef.current,
+  };
 };

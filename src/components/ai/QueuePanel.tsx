@@ -26,8 +26,23 @@ export default function QueuePanel({ queue, onProject, onRemove, onProjectNext }
       }}
     >
       <Box sx={{ display: "flex", alignItems: "center", gap: 1, px: 2.5, py: 1.5, flexShrink: 0 }}>
-        <Box sx={{ width: 4, height: 12, borderRadius: 1, background: "linear-gradient(180deg, #FFD580 0%, rgba(201,151,58,0.3) 100%)" }} />
-        <CinemaLabel sx={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "#FFD580" }}>
+        <Box
+          sx={{
+            width: 4,
+            height: 12,
+            borderRadius: 1,
+            background: "linear-gradient(180deg, #FFD580 0%, rgba(201,151,58,0.3) 100%)",
+          }}
+        />
+        <CinemaLabel
+          sx={{
+            fontSize: 9,
+            fontWeight: 700,
+            letterSpacing: "0.1em",
+            textTransform: "uppercase",
+            color: "#FFD580",
+          }}
+        >
           Queue
         </CinemaLabel>
         {queue.length > 0 && (
@@ -60,8 +75,23 @@ export default function QueuePanel({ queue, onProject, onRemove, onProjectNext }
         }}
       >
         {queue.length === 0 ? (
-          <Box sx={{ display: "flex", alignItems: "center", py: 1.5, width: "100%", justifyContent: "center" }}>
-            <Typography sx={{ fontSize: 10, color: "#475569", fontFamily: '"JetBrains Mono Variable", monospace', fontStyle: "italic" }}>
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              py: 1.5,
+              width: "100%",
+              justifyContent: "center",
+            }}
+          >
+            <Typography
+              sx={{
+                fontSize: 10,
+                color: "#475569",
+                fontFamily: '"JetBrains Mono Variable", monospace',
+                fontStyle: "italic",
+              }}
+            >
               Queue is empty
             </Typography>
           </Box>
@@ -143,11 +173,7 @@ export default function QueuePanel({ queue, onProject, onRemove, onProjectNext }
 
       {queue.length > 0 && (
         <Box sx={{ px: 2.5, pb: 2, flexShrink: 0 }}>
-          <Button
-            variant="contained"
-            onClick={onProjectNext}
-            sx={{ py: 0.75, px: 2, fontSize: 9 }}
-          >
+          <Button variant="contained" onClick={onProjectNext} sx={{ py: 0.75, px: 2, fontSize: 9 }}>
             Project Next &rarr;
           </Button>
         </Box>

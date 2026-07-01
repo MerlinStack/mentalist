@@ -154,7 +154,8 @@ export const useScriptureStore = create<ScriptureState>()(
       },
 
       clearHistory: () => set({ searchHistory: [] }),
-      clearResults: () => set({ results: [], activeVerse: null, relatedReferences: [], searchError: null }),
+      clearResults: () =>
+        set({ results: [], activeVerse: null, relatedReferences: [], searchError: null }),
 
       clearDetection: () =>
         set({

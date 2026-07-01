@@ -18,7 +18,9 @@ let db: Array<{
 
 function cosineSimilarity(a: Float32Array, b: number[] | Float32Array): number {
   const bArr = b instanceof Float32Array ? b : new Float32Array(b);
-  let dot = 0, normA = 0, normB = 0;
+  let dot = 0,
+    normA = 0,
+    normB = 0;
   for (let i = 0; i < a.length; i++) {
     dot += a[i] * bArr[i];
     normA += a[i] * a[i];
@@ -30,7 +32,17 @@ function cosineSimilarity(a: Float32Array, b: number[] | Float32Array): number {
 /** Attempt WebGPU pipeline; fall back to CPU/WASM on failure */
 async function loadASR(useWebGPU: boolean): Promise<any> {
   const model = "Xenova/whisper-large-v3-turbo";
-  const opts: any = { quantized: true, progress_callback: (p: any) => self.postMessage({ type: "progress", model: "asr", status: p.status, loaded: p.loaded, total: p.total }) };
+  const opts: any = {
+    quantized: true,
+    progress_callback: (p: any) =>
+      self.postMessage({
+        type: "progress",
+        model: "asr",
+        status: p.status,
+        loaded: p.loaded,
+        total: p.total,
+      }),
+  };
 
   if (useWebGPU) {
     opts.device = "webgpu";
@@ -41,7 +53,13 @@ async function loadASR(useWebGPU: boolean): Promise<any> {
     return await pipeline("automatic-speech-recognition", model, opts);
   } catch (err) {
     if (useWebGPU) {
-      self.postMessage({ type: "progress", model: "asr", status: "webgpu-fallback", loaded: 0, total: 0 });
+      self.postMessage({
+        type: "progress",
+        model: "asr",
+        status: "webgpu-fallback",
+        loaded: 0,
+        total: 0,
+      });
       delete opts.device;
       delete opts.dtype;
       return await pipeline("automatic-speech-recognition", model, opts);
@@ -53,7 +71,17 @@ async function loadASR(useWebGPU: boolean): Promise<any> {
 /** Attempt WebGPU embedder; fall back to CPU/WASM on failure */
 async function loadEmbedder(useWebGPU: boolean): Promise<any> {
   const model = "Xenova/bge-base-en-v1.5";
-  const opts: any = { quantized: true, progress_callback: (p: any) => self.postMessage({ type: "progress", model: "embedder", status: p.status, loaded: p.loaded, total: p.total }) };
+  const opts: any = {
+    quantized: true,
+    progress_callback: (p: any) =>
+      self.postMessage({
+        type: "progress",
+        model: "embedder",
+        status: p.status,
+        loaded: p.loaded,
+        total: p.total,
+      }),
+  };
 
   if (useWebGPU) {
     opts.device = "webgpu";
@@ -63,7 +91,13 @@ async function loadEmbedder(useWebGPU: boolean): Promise<any> {
     return await pipeline("feature-extraction", model, opts);
   } catch (err) {
     if (useWebGPU) {
-      self.postMessage({ type: "progress", model: "embedder", status: "webgpu-fallback", loaded: 0, total: 0 });
+      self.postMessage({
+        type: "progress",
+        model: "embedder",
+        status: "webgpu-fallback",
+        loaded: 0,
+        total: 0,
+      });
       delete opts.device;
       return await pipeline("feature-extraction", model, opts);
     }
@@ -75,12 +109,32 @@ async function loadEmbedder(useWebGPU: boolean): Promise<any> {
 async function loadLegacyModels(): Promise<void> {
   self.postMessage({ type: "progress", model: "asr", status: "download", loaded: 0, total: 0 });
   asr = await pipeline("automatic-speech-recognition", "Xenova/whisper-tiny.en", {
-    progress_callback: (p: any) => self.postMessage({ type: "progress", model: "asr", status: p.status, loaded: p.loaded, total: p.total }),
+    progress_callback: (p: any) =>
+      self.postMessage({
+        type: "progress",
+        model: "asr",
+        status: p.status,
+        loaded: p.loaded,
+        total: p.total,
+      }),
   });
 
-  self.postMessage({ type: "progress", model: "embedder", status: "download", loaded: 0, total: 0 });
+  self.postMessage({
+    type: "progress",
+    model: "embedder",
+    status: "download",
+    loaded: 0,
+    total: 0,
+  });
   embedder = await pipeline("feature-extraction", "Xenova/all-MiniLM-L6-v2", {
-    progress_callback: (p: any) => self.postMessage({ type: "progress", model: "embedder", status: p.status, loaded: p.loaded, total: p.total }),
+    progress_callback: (p: any) =>
+      self.postMessage({
+        type: "progress",
+        model: "embedder",
+        status: p.status,
+        loaded: p.loaded,
+        total: p.total,
+      }),
   });
 }
 
@@ -106,7 +160,13 @@ self.onmessage = async (event) => {
     } catch {
       // WebGPU or bge/whipser-large failed — fall back to legacy CPU models
       self.postMessage({ type: "progress", model: "asr", status: "fallback", loaded: 0, total: 0 });
-      self.postMessage({ type: "progress", model: "embedder", status: "fallback", loaded: 0, total: 0 });
+      self.postMessage({
+        type: "progress",
+        model: "embedder",
+        status: "fallback",
+        loaded: 0,
+        total: 0,
+      });
       try {
         await loadLegacyModels();
       } catch (err) {
@@ -117,7 +177,10 @@ self.onmessage = async (event) => {
     }
 
     status = "ready";
-    self.postMessage({ type: "loaded", webgpu: asr?.options?.device === "webgpu" || embedder?.options?.device === "webgpu" });
+    self.postMessage({
+      type: "loaded",
+      webgpu: asr?.options?.device === "webgpu" || embedder?.options?.device === "webgpu",
+    });
     return;
   }
 
