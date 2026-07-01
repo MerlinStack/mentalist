@@ -16,7 +16,17 @@ function getVoices(): SpeechSynthesisVoice[] {
 }
 
 export function useTTS() {
-  const store = useTTSStore();
+  const enabled = useTTSStore((s) => s.enabled);
+  const provider = useTTSStore((s) => s.provider);
+  const isSpeaking = useTTSStore((s) => s.isSpeaking);
+  const isPaused = useTTSStore((s) => s.isPaused);
+  const queue = useTTSStore((s) => s.queue);
+  const setEnabled = useTTSStore((s) => s.setEnabled);
+  const setProvider = useTTSStore((s) => s.setProvider);
+  const setRate = useTTSStore((s) => s.setRate);
+  const setPitch = useTTSStore((s) => s.setPitch);
+  const setVolume = useTTSStore((s) => s.setVolume);
+
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const currentUtteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
   const processingRef = useRef(false);
@@ -26,9 +36,9 @@ export function useTTS() {
       speechSynthesis?.cancel();
     } catch {}
     currentUtteranceRef.current = null;
-    store.setIsSpeaking(false);
-    store.setIsPaused(false);
-  }, [store]);
+    useTTSStore.getState().setIsSpeaking(false);
+    useTTSStore.getState().setIsPaused(false);
+  }, []);
 
   const speakWithBrowser = useCallback(
     (text: string): Promise<void> => {
@@ -40,39 +50,40 @@ export function useTTS() {
           }
           speechSynthesis.cancel();
 
+          const s = useTTSStore.getState();
           const utterance = new SpeechSynthesisUtterance(text);
-          utterance.rate = store.rate;
-          utterance.pitch = store.pitch;
-          utterance.volume = store.volume;
+          utterance.rate = s.rate;
+          utterance.pitch = s.pitch;
+          utterance.volume = s.volume;
 
-          if (store.voice) {
-            const found = getVoices().find((v) => v.name === store.voice);
+          if (s.voice) {
+            const found = getVoices().find((v) => v.name === s.voice);
             if (found) utterance.voice = found;
           }
 
           currentUtteranceRef.current = utterance;
-          store.setIsSpeaking(true);
+          s.setIsSpeaking(true);
 
           utterance.onend = () => {
-            store.setIsSpeaking(false);
+            useTTSStore.getState().setIsSpeaking(false);
             currentUtteranceRef.current = null;
             resolve();
           };
 
           utterance.onerror = () => {
-            store.setIsSpeaking(false);
+            useTTSStore.getState().setIsSpeaking(false);
             currentUtteranceRef.current = null;
             resolve();
           };
 
           speechSynthesis.speak(utterance);
         } catch {
-          store.setIsSpeaking(false);
+          useTTSStore.getState().setIsSpeaking(false);
           resolve();
         }
       });
     },
-    [store],
+    [],
   );
 
   const speakWithCloudflare = useCallback(
@@ -84,7 +95,7 @@ export function useTTS() {
           return;
         }
 
-        store.setIsSpeaking(true);
+        useTTSStore.getState().setIsSpeaking(true);
         const blob = await synthesizeViaCloudflare(text);
 
         const url = URL.createObjectURL(blob);
@@ -94,50 +105,50 @@ export function useTTS() {
         return new Promise((resolve) => {
           audio.onended = () => {
             URL.revokeObjectURL(url);
-            store.setIsSpeaking(false);
+            useTTSStore.getState().setIsSpeaking(false);
             audioRef.current = null;
             resolve();
           };
           audio.onerror = () => {
             URL.revokeObjectURL(url);
-            store.setIsSpeaking(false);
+            useTTSStore.getState().setIsSpeaking(false);
             audioRef.current = null;
             resolve();
           };
           audio.play().catch(() => {
             URL.revokeObjectURL(url);
-            store.setIsSpeaking(false);
+            useTTSStore.getState().setIsSpeaking(false);
             audioRef.current = null;
             resolve();
           });
         });
       } catch {
-        store.setIsSpeaking(false);
+        useTTSStore.getState().setIsSpeaking(false);
       }
     },
-    [store, speakWithBrowser],
+    [speakWithBrowser],
   );
 
   const speak = useCallback(
     async (text: string): Promise<void> => {
       if (!text) return;
 
-      if (store.provider === "cloudflare-aura") {
+      if (provider === "cloudflare-aura") {
         await speakWithCloudflare(text);
       } else {
         await speakWithBrowser(text);
       }
     },
-    [store.provider, speakWithBrowser, speakWithCloudflare],
+    [provider, speakWithBrowser, speakWithCloudflare],
   );
 
   const processQueue = useCallback(async () => {
     if (processingRef.current) return;
-    if (!store.enabled) return;
+    if (!enabled) return;
 
     processingRef.current = true;
     try {
-      while (store.queue.length > 0) {
+      while (useTTSStore.getState().queue.length > 0) {
         const item = useTTSStore.getState().shiftQueue();
         if (!item) break;
         await speak(item.text);
@@ -145,16 +156,16 @@ export function useTTS() {
     } finally {
       processingRef.current = false;
     }
-  }, [store.enabled, store.queue.length, speak]);
+  }, [enabled, speak]);
 
   const speakText = useCallback(
     (text: string, verseRef?: string) => {
-      if (!store.enabled || !text) return;
+      if (!enabled || !text) return;
 
       const item = { id: crypto.randomUUID?.() ?? `${Date.now()}`, text, verseRef };
       useTTSStore.getState().addToQueue(item);
     },
-    [store.enabled],
+    [enabled],
   );
 
   const stop = useCallback(() => {
@@ -163,29 +174,29 @@ export function useTTS() {
       audioRef.current.pause();
       audioRef.current = null;
     }
-    store.setIsSpeaking(false);
-    store.setIsPaused(false);
-  }, [stopBrowserSpeech, store]);
+    useTTSStore.getState().setIsSpeaking(false);
+    useTTSStore.getState().setIsPaused(false);
+  }, [stopBrowserSpeech]);
 
   const pause = useCallback(() => {
     try {
       speechSynthesis?.pause();
     } catch {}
-    store.setIsPaused(true);
-  }, [store]);
+    useTTSStore.getState().setIsPaused(true);
+  }, []);
 
   const resume = useCallback(() => {
     try {
       speechSynthesis?.resume();
     } catch {}
-    store.setIsPaused(false);
-  }, [store]);
+    useTTSStore.getState().setIsPaused(false);
+  }, []);
 
   useEffect(() => {
-    if (store.enabled && store.queue.length > 0 && !store.isSpeaking) {
+    if (enabled && queue.length > 0 && !isSpeaking) {
       processQueue();
     }
-  }, [store.enabled, store.queue.length, store.isSpeaking, processQueue]);
+  }, [enabled, queue.length, isSpeaking, processQueue]);
 
   useEffect(() => {
     return () => {
@@ -203,16 +214,16 @@ export function useTTS() {
     stop,
     pause,
     resume,
-    isSpeaking: store.isSpeaking,
-    isPaused: store.isPaused,
-    enabled: store.enabled,
-    provider: store.provider,
-    queue: store.queue,
-    setEnabled: store.setEnabled,
-    setProvider: store.setProvider,
-    setRate: store.setRate,
-    setPitch: store.setPitch,
-    setVolume: store.setVolume,
+    isSpeaking,
+    isPaused,
+    enabled,
+    provider,
+    queue,
+    setEnabled,
+    setProvider,
+    setRate,
+    setPitch,
+    setVolume,
     voices: getVoices(),
   };
 }
